@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Marketing — Mos Pub Mercière</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MOS">
+  <meta name="theme-color" content="#0b2d3e">
+  <style>
+    /* ── KPI chips ── */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 800px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
+
+    .kpi-chip {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-chip::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--kpi-color, var(--primary));
+      border-radius: 14px 14px 0 0;
+    }
+    .kpi-chip.c-today  { --kpi-color: #cda443; }
+    .kpi-chip.c-week   { --kpi-color: #60a5fa; }
+    .kpi-chip.c-month  { --kpi-color: #a78bfa; }
+    .kpi-chip.c-joy    { --kpi-color: #22c55e; }
+    .kpi-label { font-size: .72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+    .kpi-value { font-size: 1.9rem; font-weight: 800; color: var(--text); line-height: 1; }
+    .kpi-sub   { font-size: .73rem; color: var(--text-muted); }
+
+    /* ── Joy sync bar ── */
+    .sync-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; flex-shrink: 0; animation: blink 2s ease-in-out infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .sync-label { flex: 1; font-size: .83rem; color: var(--text-muted); }
+    .sync-label strong { color: var(--text); }
+    .sync-btn { font-size: .82rem; }
+
+    /* ── Layout ── */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+    @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+
+    /* ── Day group ── */
+    .day-group { margin-bottom: 20px; }
+    .day-group:last-child { margin-bottom: 0; }
+    .day-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .day-title {
+      font-size: .82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--text-muted);
+    }
+    .day-title.is-today { color: var(--primary); }
+    .day-badge {
+      font-size: .72rem;
+      padding: 2px 8px;
+      border-radius: 99px;
+      background: var(--primary-dim);
+      color: var(--primary);
+      font-weight: 700;
+    }
+    .day-sep { flex: 1; height: 1px; background: var(--border); }
+
+    /* ── Reservation card ── */
+    .res-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--border);
+      border-radius: 10px;
+      padding: 11px 14px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    .res-item:hover { background: var(--bg-hover); }
+    .res-item.st-confirmed  { border-left-color: #60a5fa; }
+    .res-item.st-arrived    { border-left-color: #22c55e; }
+    .res-item.st-no_show    { border-left-color: #ef4444; }
+    .res-item.st-cancelled  { border-left-color: rgba(255,255,255,.15); opacity: .55; }
+    .res-time  { font-size: .95rem; font-weight: 800; color: var(--text); min-width: 42px; }
+    .res-info  { flex: 1; min-width: 0; }
+    .res-name  { font-weight: 600; font-size: .9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .res-meta  { font-size: .75rem; color: var(--text-muted); margin-top: 2px; }
+    .res-badge {
+      font-size: .7rem; font-weight: 700; padding: 3px 9px;
+      border-radius: 99px; text-transform: uppercase; letter-spacing: .04em; flex-shrink: 0;
+    }
+    .res-badge.confirmed { background: rgba(96,165,250,.18); color: #60a5fa; }
+    .res-badge.arrived   { background: rgba(34,197,94,.18);  color: #4ade80; }
+    .res-badge.no_show   { background: rgba(239,68,68,.18);  color: #f87171; }
+    .res-badge.cancelled { background: rgba(255,255,255,.07); color: var(--text-muted); }
+    .joy-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #22c55e; margin-right: 4px; vertical-align: middle; }
+
+    /* ── Espace stats ── */
+    .space-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+    .space-row:last-child { border-bottom: none; }
+    .space-name { flex: 1; font-size: .85rem; font-weight: 500; }
+    .space-bar  { width: 80px; height: 6px; background: rgba(255,255,255,.1); border-radius: 99px; overflow: hidden; }
+    .space-fill { height: 100%; background: var(--primary); border-radius: 99px; }
+    .space-count { font-size: .82rem; font-weight: 700; color: var(--primary); width: 24px; text-align: right; }
+  </style>
+</head>
+<body>
+  <nav class="nav" id="nav"></nav>
+
+  <div class="page">
+    <div class="container">
+
+      <!-- Header -->
+      <div class="page-header" style="margin-bottom: 24px;">
+        <div>
+          <div class="page-title">📊 Vue globale · Réservations</div>
+          <div class="page-subtitle" id="todayLabel"></div>
+        </div>
+        <a href="/marketing/reservations.html" class="btn btn-primary">+ Nouvelle résa</a>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpi-row">
+        <div class="kpi-chip c-today">
+          <div class="kpi-label">📅 Aujourd'hui</div>
+          <div class="kpi-value" id="kToday">—</div>
+          <div class="kpi-sub" id="kTodaySub">réservation(s)</div>
+        </div>
+        <div class="kpi-chip c-week">
+          <div class="kpi-label">📆 7 prochains jours</div>
+          <div class="kpi-value" id="kWeek">—</div>
+          <div class="kpi-sub" id="kWeekSub">dont — couverts</div>
+        </div>
+        <div class="kpi-chip c-month">
+          <div class="kpi-label">🗓️ 30 prochains jours</div>
+          <div class="kpi-value" id="kMonth">—</div>
+          <div class="kpi-sub" id="kMonthSub">dont — couverts</div>
+        </div>
+        <div class="kpi-chip c-joy">
+          <div class="kpi-label">🔗 Via Joy.io</div>
+          <div class="kpi-value" id="kJoy">—</div>
+          <div class="kpi-sub">résa(s) à venir</div>
+        </div>
+      </div>
+
+      <!-- Joy.io sync bar -->
+      <div class="sync-bar" id="syncBar">
+        <div class="sync-dot"></div>
+        <div class="sync-label">Joy.io · Dernière sync : <strong id="syncTime">—</strong></div>
+        <button class="btn btn-secondary btn-sm sync-btn" onclick="manualSync()" id="syncBtn">↻ Synchroniser</button>
+        <a href="/admin/joy.html" class="btn btn-secondary btn-sm">Gérer Joy.io →</a>
+      </div>
+
+      <!-- Grille principale -->
+      <div class="main-grid">
+
+        <!-- Gauche : Prochaines réservations (14 jours) -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📋 Prochaines réservations</div>
+            <a href="/marketing/reservations.html" class="btn btn-secondary btn-sm">Tout gérer →</a>
+          </div>
+          <div id="upcomingList">
+            <div class="empty-state"><div class="empty-state-icon">📅</div><div class="empty-state-text">Chargement…</div></div>
+          </div>
+        </div>
+
+        <!-- Droite : Stats semaine + espaces -->
+        <div style="display:flex;flex-direction:column;gap:20px;">
+
+          <div class="card">
+            <div class="card-header"><div class="card-title">🏛️ Espaces cette semaine</div></div>
+            <div id="spaceStats">
+              <div class="empty-state"><div class="empty-state-text">Chargement…</div></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><div class="card-title">📈 Accès rapides</div></div>
+            <div style="display:flex;flex-direction:column;gap:8px;padding:4px 0;">
+              <a href="/marketing/reservations.html" class="btn btn-secondary" style="justify-content:center;">📋 Gérer les réservations</a>
+              <a href="/admin/joy.html"              class="btn btn-secondary" style="justify-content:center;">🔗 Événements Joy.io</a>
+              <a href="/admin/manager.html"           class="btn btn-secondary" style="justify-content:center;">📋 Vue Manager</a>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/api.js"></script>
+  <script>
+    buildNav('marketing-dashboard');
+
+    // ─── Init ─────────────────────────────────────────────────────
+    document.getElementById('todayLabel').textContent = formatDate(today());
+
+    async function loadAll() {
+      await Promise.all([loadKpis(), loadUpcoming(), loadSyncStatus()]);
+    }
+
+    // ─── KPIs ─────────────────────────────────────────────────────
+    async function loadKpis() {
+      const stats = await api.get('/api/marketing/stats');
+      if (!stats) return;
+      document.getElementById('kToday').textContent    = stats.today?.c ?? '—';
+      document.getElementById('kTodaySub').textContent = stats.today?.p ? `${stats.today.p} couvert(s)` : 'réservation(s)';
+      document.getElementById('kWeek').textContent     = stats.week?.c ?? '—';
+      document.getElementById('kWeekSub').textContent  = stats.week?.p ? `dont ${stats.week.p} couverts` : 'réservation(s)';
+      document.getElementById('kMonth').textContent    = stats.month?.c ?? '—';
+      document.getElementById('kMonthSub').textContent = stats.month?.p ? `dont ${stats.month.p} couverts` : 'réservation(s)';
+      document.getElementById('kJoy').textContent      = stats.viaJoy?.c ?? '—';
+
+      // Espaces
+      renderSpaceStats(stats.bySpace || []);
+    }
+
+    function renderSpaceStats(bySpace) {
+      const container = document.getElementById('spaceStats');
+      if (!bySpace.length) {
+        container.innerHTML = `<div class="empty-state"><div class="empty-state-text">Aucune résa cette semaine</div></div>`;
+        return;
+      }
+      const max = Math.max(...bySpace.map(s => s.c), 1);
+      container.innerHTML = bySpace.map(s => `
+        <div class="space-row">
+          <div class="space-name">${s.space}</div>
+          <div class="space-bar"><div class="space-fill" style="width:${Math.round(s.c/max*100)}%"></div></div>
+          <div class="space-count">${s.c}</div>
+        </div>`).join('');
+    }
+
+    // ─── Upcoming reservations (14 jours) ─────────────────────────
+    async function loadUpcoming() {
+      const from = today();
+      const toD  = new Date(); toD.setDate(toD.getDate() + 13);
+      const to   = toD.toISOString().split('T')[0];
+      const list = await api.get(`/api/reservations/range?from=${from}&to=${to}`);
+      if (!list) return;
+      renderUpcoming(list, from);
+    }
+
+    const STATUS_LABEL = { confirmed:'Confirmée', arrived:'Arrivée', no_show:'No show', cancelled:'Annulée' };
+
+    function renderUpcoming(resas, todayStr) {
+      const container = document.getElementById('upcomingList');
+      if (!resas.length) {
+        container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🎉</div><div class="empty-state-text">Aucune réservation à venir</div></div>`;
+        return;
+      }
+
+      // Group by date
+      const grouped = {};
+      resas.forEach(r => {
+        if (!grouped[r.date]) grouped[r.date] = [];
+        grouped[r.date].push(r);
+      });
+
+      const html = Object.entries(grouped).map(([date, items]) => {
+        const isToday = date === todayStr;
+        const d = new Date(date + 'T12:00');
+        const dateLabel = isToday
+          ? `Aujourd'hui ${d.toLocaleDateString('fr-FR',{day:'numeric',month:'long'})}`
+          : d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+
+        const rows = items.map(r => {
+          const spaceTag = r.space ? `<span style="color:var(--primary);font-weight:600;">${r.space}</span> · ` : '';
+          const joyTag   = r.joy_event_id ? `<span class="joy-dot" title="Joy.io"></span>` : '';
+          const tables   = r.table_names?.length ? ` · T.${r.table_names.join('+')}` : '';
+          return `
+            <div class="res-item st-${r.status}" onclick="window.location='/marketing/reservations.html?date=${r.date}'">
+              <div class="res-time">${r.time}</div>
+              <div class="res-info">
+                <div class="res-name">${joyTag}${r.customer_name}</div>
+                <div class="res-meta">${spaceTag}${r.party_size} pers.${tables}${r.notes ? ` · ${r.notes}` : ''}</div>
+              </div>
+              <div class="res-badge ${r.status}">${STATUS_LABEL[r.status] || r.status}</div>
+            </div>`;
+        }).join('');
+
+        return `
+          <div class="day-group">
+            <div class="day-header">
+              <div class="day-title ${isToday ? 'is-today' : ''}">${dateLabel}</div>
+              <div class="day-badge">${items.length}</div>
+              <div class="day-sep"></div>
+            </div>
+            ${rows}
+          </div>`;
+      }).join('');
+
+      container.innerHTML = `<div style="max-height:620px;overflow-y:auto;padding-right:4px;">${html}</div>`;
+    }
+
+    // ─── Joy.io sync ──────────────────────────────────────────────
+    async function loadSyncStatus() {
+      const cfg = await api.get('/api/joy/config');
+      if (!cfg) return;
+      const label = document.getElementById('syncTime');
+      if (cfg.lastSync) {
+        const d = new Date(cfg.lastSync);
+        const diff = Math.round((Date.now() - d) / 60000);
+        label.textContent = diff < 2 ? 'il y a moins de 2 min' : `il y a ${diff} min`;
+      } else {
+        label.textContent = 'jamais';
+      }
+    }
+
+    async function manualSync() {
+      const btn = document.getElementById('syncBtn');
+      btn.textContent = '⏳ En cours…';
+      btn.disabled = true;
+      const res = await api.post('/api/joy/sync', {});
+      btn.textContent = '↻ Synchroniser';
+      btn.disabled = false;
+      if (res?.error) { showToast('Erreur sync : ' + res.error, 'error'); return; }
+      showToast(`✅ ${res.synced} événements synchronisés`, 'success');
+      loadAll();
+    }
+
+    // ─── Socket.io ────────────────────────────────────────────────
+    const socket = io();
+    socket.on('reservation:updated', () => { loadUpcoming(); loadKpis(); });
+    socket.on('reservation:deleted', () => { loadUpcoming(); loadKpis(); });
+    socket.on('joy:synced', (data) => {
+      loadAll();
+      showToast(`🔗 Joy.io synchronisé — ${data.synced} événements`, 'success');
+    });
+
+    // ─── Init ─────────────────────────────────────────────────────
+    loadAll();
+    setInterval(loadAll, 60000);
+  </script>
+</body>
+</html>

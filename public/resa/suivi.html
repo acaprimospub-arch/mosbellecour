@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Suivi Réservations — Mos Pub Mercière</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MOS">
+  <meta name="theme-color" content="#0b2d3e">
+  <style>
+    /* ── Sélecteur de période ── */
+    .period-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 4px;
+    }
+    .period-tab {
+      flex: 1;
+      padding: 7px 4px;
+      border-radius: 7px;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+    }
+    .period-tab.active {
+      background: var(--primary);
+      color: #000;
+    }
+
+    /* ── Filtres statut ── */
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+    .filter-btn {
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--text-muted);
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .filter-btn.active { background: var(--primary); color: #000; border-color: var(--primary); font-weight:600; }
+
+    /* ── KPIs résumé ── */
+    .summary-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .summary-item {
+      flex-shrink: 0;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 14px;
+      text-align: center;
+      min-width: 70px;
+    }
+    .summary-val { font-size: 1.4rem; font-weight: 700; line-height: 1; color: var(--primary); }
+    .summary-lab { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+    .summary-item.green .summary-val { color: var(--success); }
+    .summary-item.orange .summary-val { color: var(--orange); }
+    .summary-item.red .summary-val { color: var(--danger); }
+    .summary-item.grey .summary-val { color: #666; }
+
+    /* ── Groupes par date ── */
+    .date-group { margin-bottom: 18px; }
+    .date-group-header {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .date-group-header .day-pax {
+      font-weight: 400;
+      font-size: 11px;
+    }
+
+    /* ── Lignes de réservation ── */
+    .suivi-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      margin-bottom: 6px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--border);
+      font-size: 13px;
+    }
+    .suivi-row.st-confirmed { border-left-color: var(--info);    background: var(--info-bg); }
+    .suivi-row.st-arrived   { border-left-color: var(--success); background: var(--success-bg); }
+    .suivi-row.st-no_show   { border-left-color: var(--danger);  background: rgba(232,84,84,.06); opacity:.8; }
+    .suivi-row.st-cancelled { border-left-color: #555;           background: rgba(85,85,85,.06); opacity:.55; }
+
+    .suivi-time { font-weight: 700; min-width: 40px; font-size: 12px; }
+    .suivi-name { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .suivi-pax  { font-size: 11px; color: var(--text-muted); min-width: 24px; text-align:right; }
+    .suivi-tags { display:flex; gap:4px; flex-shrink:0; }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 6px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .tag-devis   { background: rgba(205,164,67,.18); color: var(--primary); }
+    .tag-note    { background: rgba(91,141,238,.15);  color: #5b8dee; }
+    .tag-noplace { background: rgba(245,166,36,.15);  color: var(--orange); }
+    .tag-joy     { background: rgba(255,255,255,.08); color: var(--text-muted); border: 1px solid var(--border); }
+
+    .status-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .sb-confirmed { background:rgba(91,141,238,.18); color:#5b8dee; }
+    .sb-arrived   { background:var(--success-bg); color:var(--success); }
+    .sb-no_show   { background:rgba(232,84,84,.15); color:var(--danger); }
+    .sb-cancelled { background:rgba(85,85,85,.12); color:#888; }
+
+    .empty-state { text-align:center; color:var(--text-muted); font-size:13px; padding:32px 0; }
+
+    /* ── Range custom ── */
+    .custom-range {
+      display: none;
+      gap: 8px;
+      margin-bottom: 14px;
+      align-items: center;
+    }
+    .custom-range.visible { display: flex; }
+    .custom-range input {
+      flex: 1;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 13px;
+    }
+    .custom-range button {
+      padding: 7px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--primary);
+      background: rgba(205,164,67,.1);
+      color: var(--primary);
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    @media(min-width: 900px) {
+      .container-sm { max-width: 1100px !important; }
+
+      /* Summary en grille au lieu du scroll horizontal */
+      .summary-bar {
+        display: grid !important;
+        grid-template-columns: repeat(6, 1fr);
+        overflow: visible;
+      }
+      .summary-item { min-width: 0; }
+
+      /* Contrôles sur une ligne */
+      .suivi-top-bar {
+        display: grid;
+        grid-template-columns: auto auto 1fr;
+        gap: 12px;
+        align-items: start;
+        margin-bottom: 16px;
+      }
+      .period-tabs { margin-bottom: 0; }
+      .filter-row  { margin-bottom: 0; justify-content: flex-end; }
+
+      /* Liste en 2 colonnes par date */
+      .suivi-cols {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav" id="nav"></nav>
+
+  <div class="page">
+    <div class="container-sm">
+
+      <div class="card-header" style="margin-bottom:14px">
+        <h1 class="card-title">📈 Suivi des réservations</h1>
+      </div>
+
+      <div class="suivi-top-bar">
+        <!-- Sélecteur de période -->
+        <div class="period-tabs">
+          <button class="period-tab active" onclick="setPeriod('week', this)">Cette semaine</button>
+          <button class="period-tab" onclick="setPeriod('month', this)">Ce mois</button>
+          <button class="period-tab" onclick="setPeriod('custom', this)">Période…</button>
+        </div>
+
+        <!-- Range custom -->
+        <div class="custom-range" id="customRange">
+          <input type="date" id="rangeFrom">
+          <span style="color:var(--text-muted);font-size:12px">→</span>
+          <input type="date" id="rangeTo">
+          <button onclick="loadCustom()">OK</button>
+        </div>
+
+        <!-- Filtres statut -->
+        <div class="filter-row">
+          <button class="filter-btn active" onclick="setFilter('all', this)">Tous</button>
+          <button class="filter-btn" onclick="setFilter('confirmed', this)">Confirmées</button>
+          <button class="filter-btn" onclick="setFilter('arrived', this)">Arrivées</button>
+          <button class="filter-btn" onclick="setFilter('no_show', this)">No show</button>
+          <button class="filter-btn" onclick="setFilter('cancelled', this)">Annulées</button>
+        </div>
+      </div>
+
+      <!-- Résumé KPIs -->
+      <div class="summary-bar" id="summaryBar" style="margin-bottom:16px"></div>
+
+      <!-- Liste groupée par date -->
+      <div class="suivi-cols" id="suiviList"><div class="empty-state">Chargement…</div></div>
+
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    buildNav('resa-suivi');
+
+    let allResas = [];
+    let currentFilter = 'all';
+
+    // ── Init ──
+    const todayStr = today();
+    setPeriod('week', document.querySelector('.period-tab.active'));
+
+    function getWeekRange() {
+      const d = new Date(todayStr);
+      const day = d.getDay() || 7;
+      const mon = new Date(d); mon.setDate(d.getDate() - day + 1);
+      const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+      return {
+        from: mon.toISOString().split('T')[0],
+        to:   sun.toISOString().split('T')[0],
+      };
+    }
+
+    function getMonthRange() {
+      const d = new Date(todayStr);
+      return {
+        from: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`,
+        to:   new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().split('T')[0],
+      };
+    }
+
+    async function setPeriod(mode, btn) {
+      document.querySelectorAll('.period-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const customRange = document.getElementById('customRange');
+      if (mode === 'custom') {
+        customRange.classList.add('visible');
+        const { from, to } = getWeekRange();
+        document.getElementById('rangeFrom').value = from;
+        document.getElementById('rangeTo').value = to;
+        return;
+      }
+      customRange.classList.remove('visible');
+      const range = mode === 'week' ? getWeekRange() : getMonthRange();
+      await loadRange(range.from, range.to);
+    }
+
+    async function loadCustom() {
+      const from = document.getElementById('rangeFrom').value;
+      const to   = document.getElementById('rangeTo').value;
+      if (!from || !to) return;
+      await loadRange(from, to);
+    }
+
+    async function loadRange(from, to) {
+      document.getElementById('suiviList').innerHTML = '<div class="empty-state">Chargement…</div>';
+      const data = await api.get(`/api/reservations/range?from=${from}&to=${to}`);
+      if (!data) return;
+      allResas = data;
+      renderSuivi();
+    }
+
+    function setFilter(f, btn) {
+      currentFilter = f;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderSuivi();
+    }
+
+    function renderSuivi() {
+      const filtered = currentFilter === 'all'
+        ? allResas
+        : allResas.filter(r => r.status === currentFilter);
+
+      // KPIs
+      const total = allResas.length;
+      const confirmed = allResas.filter(r => r.status === 'confirmed').length;
+      const arrived   = allResas.filter(r => r.status === 'arrived').length;
+      const noshow    = allResas.filter(r => r.status === 'no_show').length;
+      const cancelled = allResas.filter(r => r.status === 'cancelled').length;
+      const paxTotal  = allResas.filter(r => r.status !== 'cancelled').reduce((s, r) => s + (r.party_size || 0), 0);
+
+      document.getElementById('summaryBar').innerHTML = `
+        <div class="summary-item"><div class="summary-val">${total}</div><div class="summary-lab">Total</div></div>
+        <div class="summary-item"><div class="summary-val">${paxTotal}</div><div class="summary-lab">Couverts</div></div>
+        <div class="summary-item green"><div class="summary-val">${arrived}</div><div class="summary-lab">Arrivées</div></div>
+        <div class="summary-item orange"><div class="summary-val">${confirmed}</div><div class="summary-lab">Confirmées</div></div>
+        <div class="summary-item red"><div class="summary-val">${noshow}</div><div class="summary-lab">No show</div></div>
+        <div class="summary-item grey"><div class="summary-val">${cancelled}</div><div class="summary-lab">Annulées</div></div>
+      `;
+
+      const list = document.getElementById('suiviList');
+      if (!filtered.length) {
+        list.innerHTML = '<div class="empty-state">Aucune réservation pour cette période</div>';
+        return;
+      }
+
+      // Grouper par date
+      const byDate = {};
+      filtered.forEach(r => {
+        if (!byDate[r.date]) byDate[r.date] = [];
+        byDate[r.date].push(r);
+      });
+
+      const dates = Object.keys(byDate).sort();
+      list.innerHTML = dates.map(d => {
+        const resas = byDate[d].sort((a, b) => a.time.localeCompare(b.time));
+        const dayPax = resas.filter(r => r.status !== 'cancelled').reduce((s, r) => s + (r.party_size || 0), 0);
+        const isToday = d === todayStr;
+        const isPast  = d < todayStr;
+        const label   = isToday ? "Aujourd'hui" : formatDate(d);
+
+        return `
+          <div class="date-group">
+            <div class="date-group-header" style="${isPast && !isToday ? 'opacity:.6' : ''}">
+              <span>${label}</span>
+              <span class="day-pax">${resas.length} rés. · ${dayPax} couverts</span>
+            </div>
+            ${resas.map(r => {
+              const tableIds = JSON.parse(r.table_ids || '[]');
+              const hasDevis = (r.attach_count || 0) > 0;
+              const noTable  = r.status === 'confirmed' && tableIds.length === 0;
+              const statusLabels = { confirmed:'Confirmée', arrived:'Arrivée', no_show:'No show', cancelled:'Annulée' };
+              return `
+                <div class="suivi-row st-${r.status}">
+                  <span class="suivi-time">${r.time}</span>
+                  <span class="suivi-name">${r.customer_name}</span>
+                  <span class="suivi-pax">${r.party_size}p</span>
+                  <div class="suivi-tags">
+                    ${hasDevis   ? '<span class="tag tag-devis">📄 Devis</span>'       : ''}
+                    ${r.admin_notes ? '<span class="tag tag-note">📌 Note</span>'      : ''}
+                    ${noTable    ? '<span class="tag tag-noplace">⚠️ Table</span>'     : ''}
+                    ${r.joy_event_id ? '<span class="tag tag-joy">Joy</span>'          : ''}
+                  </div>
+                  <span class="status-badge sb-${r.status}">${statusLabels[r.status] || r.status}</span>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }).join('');
+    }
+  </script>
+</body>
+</html>

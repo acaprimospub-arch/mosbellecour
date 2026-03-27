@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Gestion Réservations — Mos Pub Mercière</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MOS">
+  <meta name="theme-color" content="#0b2d3e">
+  <style>
+    /* ── Navigation date ── */
+    .date-nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .date-nav button {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .date-nav button:active { opacity: .7; }
+    .date-nav input[type="date"] {
+      flex: 1;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    /* ── Chips statuts ── */
+    .status-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+    .chip.total   { border-color: var(--primary); color: var(--primary); }
+    .chip.orange  { border-color: var(--orange);  color: var(--orange); }
+    .chip.green   { border-color: var(--success); color: var(--success); }
+    .chip.blue    { border-color: var(--info);    color: var(--info); }
+
+    /* ── Cartes réservation ── */
+    .res-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.12);
+    }
+    .res-card.st-confirmed { border-left-color: var(--info);    background: var(--info-bg); }
+    .res-card.st-arrived   { border-left-color: var(--success); background: var(--success-bg); }
+    .res-card.st-no_show   { border-left-color: var(--danger);  background: rgba(232,84,84,.06); opacity:.75; }
+    .res-card.st-cancelled { border-left-color: #555;           background: rgba(85,85,85,.06); opacity:.55; }
+
+    .res-top {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .res-time {
+      font-size: 1.2rem;
+      font-weight: 700;
+      line-height: 1;
+      min-width: 46px;
+    }
+    .res-name {
+      font-size: 15px;
+      font-weight: 600;
+      flex: 1;
+    }
+    .res-pax {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .res-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .res-meta a { color: var(--info); text-decoration: none; }
+    .res-notes {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-style: italic;
+      margin-bottom: 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .res-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .res-actions button {
+      font-size: 12px;
+      padding: 5px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .res-actions button:active { opacity: .7; }
+    .btn-edit   { border-color: var(--info)!important;    color: var(--info)!important; }
+    .btn-devis  { border-color: var(--primary)!important; color: var(--primary)!important; }
+    .btn-del    { border-color: var(--danger)!important;  color: var(--danger)!important; }
+
+    .devis-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 20px;
+      background: rgba(205,164,67,.15);
+      color: var(--primary);
+      border: 1px solid rgba(205,164,67,.3);
+      font-weight: 600;
+    }
+    .has-devis { background: rgba(205,164,67,.12); border: 1px dashed var(--primary); border-radius: 10px; }
+
+    /* ── Drawer ── */
+    .drawer-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:200; }
+    .drawer-overlay.open { display:block; }
+    .drawer {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--bg-card);
+      border-radius: 16px 16px 0 0;
+      padding: 20px 16px calc(env(safe-area-inset-bottom) + 20px);
+      z-index: 201;
+      max-height: 92vh;
+      overflow-y: auto;
+      transform: translateY(100%);
+      transition: transform .3s ease;
+    }
+    .drawer.open { transform: translateY(0); }
+    @media(min-width:600px) {
+      .drawer { max-width: 520px; left: 50%; right: auto; bottom: auto; top: 50%; transform: translateX(-50%) translateY(-40%) scale(.96); border-radius: 16px; opacity: 0; pointer-events: none; transition: transform .25s ease, opacity .25s ease; }
+      .drawer.open { transform: translateX(-50%) translateY(-50%) scale(1); opacity: 1; pointer-events: auto; }
+    }
+    .drawer-handle {
+      width: 36px; height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin: 0 auto 16px;
+    }
+    .drawer-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    .form-group { margin-bottom: 14px; }
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 5px;
+    }
+    .form-group input, .form-group textarea, .form-group select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    .form-group textarea { min-height: 70px; resize: vertical; }
+    .pax-stepper {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .pax-stepper button {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text);
+      font-size: 18px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .pax-stepper input { width: 56px; text-align: center; }
+
+    /* ── Pièces jointes ── */
+    .attach-list { display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
+    .attach-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 12px;
+    }
+    .attach-icon { font-size: 18px; }
+    .attach-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .attach-size { color: var(--text-muted); }
+    .attach-actions { display:flex; gap:4px; }
+    .attach-actions a, .attach-actions button {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--text);
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .empty-state { text-align:center; color:var(--text-muted); font-size:13px; padding:24px 0; }
+    .section-sep { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+
+    @media(min-width: 900px) {
+      /* Conteneur élargi */
+      .container-sm { max-width: 1100px !important; }
+
+      /* Masque l'overlay sur desktop */
+      .drawer-overlay { display: none !important; }
+
+      /* Panel latéral droit */
+      .drawer {
+        left: auto !important;
+        right: -480px !important;
+        bottom: 0 !important;
+        top: 56px !important;
+        width: 460px !important;
+        max-width: 460px !important;
+        max-height: calc(100vh - 56px) !important;
+        border-radius: 0 !important;
+        border-left: 1px solid var(--border) !important;
+        transform: none !important;
+        opacity: 1 !important;
+        transition: right .3s ease !important;
+        pointer-events: none !important;
+        box-shadow: -4px 0 24px rgba(0,0,0,.18) !important;
+      }
+      .drawer.open {
+        right: 0 !important;
+        pointer-events: auto !important;
+      }
+      /* Décale le contenu quand le panel est ouvert */
+      .page { transition: padding-right .3s ease; }
+      .page.panel-open { padding-right: 460px; }
+
+      /* Masque la poignée mobile sur desktop */
+      .drawer-handle { display: none; }
+
+      /* Liste en 2 colonnes si beaucoup de résas */
+      #resaList { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      #resaList .empty-state { grid-column: 1 / -1; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav" id="nav"></nav>
+
+  <div class="page">
+    <div class="container-sm">
+
+      <!-- En-tête -->
+      <div class="card-header" style="margin-bottom:14px">
+        <h1 class="card-title">📋 Gestion des réservations</h1>
+        <div style="display:flex;gap:8px">
+          <button class="btn" id="syncBtn" onclick="syncJoy()" style="font-size:12px;padding:7px 12px;border-color:rgba(205,164,67,.4);color:var(--primary)">🔄 Joy</button>
+          <button class="btn btn-primary" onclick="openCreate()">+ Nouvelle</button>
+        </div>
+      </div>
+
+      <!-- Navigation date -->
+      <div class="date-nav">
+        <button onclick="shiftDate(-1)">‹</button>
+        <input type="date" id="dateInput" onchange="loadResas()">
+        <button onclick="shiftDate(1)">›</button>
+      </div>
+      <div id="dateLabelEl" style="font-size:13px;color:var(--text-muted);margin-bottom:10px;text-align:center"></div>
+
+      <!-- Chips résumé + filtre Joy -->
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+        <div class="status-chips" id="chips" style="margin-bottom:0"></div>
+        <button id="joyFilterBtn" onclick="toggleJoyFilter()" style="font-size:11px;padding:4px 12px;border-radius:20px;border:1px solid rgba(205,164,67,.4);background:none;color:var(--primary);cursor:pointer;font-weight:600">🔗 Joy uniquement</button>
+      </div>
+
+      <!-- Liste -->
+      <div id="resaList"><div class="empty-state">Chargement…</div></div>
+
+    </div>
+  </div>
+
+  <!-- Overlay + Drawer édition -->
+  <div class="drawer-overlay" id="editOverlay" onclick="closeEdit()"></div>
+  <div class="drawer" id="editDrawer">
+    <div class="drawer-handle"></div>
+    <div class="drawer-title" id="editTitle">Réservation</div>
+
+    <div class="form-group">
+      <label>Nom du client *</label>
+      <input type="text" id="eName" placeholder="Jean Dupont">
+    </div>
+    <div class="form-group">
+      <label>Téléphone</label>
+      <input type="tel" id="ePhone" placeholder="06 XX XX XX XX">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group">
+        <label>Date *</label>
+        <input type="date" id="eDate">
+      </div>
+      <div class="form-group">
+        <label>Heure *</label>
+        <input type="time" id="eTime">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Nombre de personnes</label>
+      <div class="pax-stepper">
+        <button type="button" onclick="stepPax(-1)">−</button>
+        <input type="number" id="ePax" value="2" min="1" max="500">
+        <button type="button" onclick="stepPax(1)">+</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Espace / Salle</label>
+      <input type="text" id="eSpace" placeholder="ex. Terrasse, Salle privée…">
+    </div>
+    <div class="form-group">
+      <label>Notes client</label>
+      <textarea id="eNotes" placeholder="Allergies, occasion spéciale…"></textarea>
+    </div>
+    <div class="form-group">
+      <label>Notes internes (équipe)</label>
+      <textarea id="eAdminNotes" placeholder="Devis envoyé le…, acompte reçu…"></textarea>
+    </div>
+    <div class="form-group">
+      <label>Statut</label>
+      <select id="eStatus">
+        <option value="confirmed">Confirmée</option>
+        <option value="arrived">Arrivée</option>
+        <option value="no_show">No show</option>
+        <option value="cancelled">Annulée</option>
+      </select>
+    </div>
+
+    <hr class="section-sep">
+
+    <!-- Pièces jointes / Devis -->
+    <div style="font-size:13px;font-weight:600;margin-bottom:10px">📎 Pièces jointes & devis</div>
+    <div class="attach-list" id="attachList"></div>
+    <label style="display:block;cursor:pointer">
+      <input type="file" id="fileInput" style="display:none" multiple accept="image/*,.pdf,.docx,.xlsx,.txt" onchange="uploadFiles()">
+      <span class="btn" style="display:inline-block;font-size:13px;padding:8px 16px;border-radius:8px;border:1px dashed var(--primary);color:var(--primary);background:rgba(205,164,67,.06)">
+        + Ajouter un fichier
+      </span>
+    </label>
+
+    <hr class="section-sep">
+
+    <!-- Note Joy -->
+    <div id="joyNote" style="display:none;margin-bottom:14px;padding:10px 12px;background:rgba(205,164,67,.08);border:1px solid rgba(205,164,67,.3);border-radius:8px;font-size:12px;color:var(--primary)">
+      🔗 <strong>Réservation Joy.io</strong> — Le nom, la date et l'heure sont gérés par Joy. Vous pouvez modifier le statut, les notes et les pièces jointes.
+    </div>
+
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" style="flex:1" onclick="saveEdit()">Enregistrer</button>
+      <button class="btn" style="flex:1" onclick="closeEdit()">Annuler</button>
+    </div>
+    <div id="devisBtn" style="margin-top:8px">
+      <button class="btn" style="width:100%;border-color:rgba(205,164,67,.5);color:var(--primary)" onclick="openDevis()">📝 Créer un devis</button>
+    </div>
+    <div id="deleteBtn" style="margin-top:8px">
+      <button class="btn" style="color:var(--danger);border-color:var(--danger);width:100%" onclick="deleteResa()">🗑 Supprimer cette réservation</button>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    buildNav('resa-gestion');
+
+    let resasCache = [];
+    let editingId = null;
+    let joyFilterActive = false;
+
+    // ── Sync Joy ──
+    async function syncJoy() {
+      const btn = document.getElementById('syncBtn');
+      btn.textContent = '⏳ Sync…';
+      btn.disabled = true;
+      const res = await api.post('/api/joy/sync', {});
+      btn.textContent = '🔄 Joy';
+      btn.disabled = false;
+      if (res) {
+        showToast(`Joy sync : ${res.synced} événement(s)`, 'success');
+        loadResas();
+      }
+    }
+
+    // ── Filtre Joy ──
+    function toggleJoyFilter() {
+      joyFilterActive = !joyFilterActive;
+      const btn = document.getElementById('joyFilterBtn');
+      btn.style.background = joyFilterActive ? 'rgba(205,164,67,.15)' : 'none';
+      btn.style.borderColor = joyFilterActive ? 'var(--primary)' : 'rgba(205,164,67,.4)';
+      renderList(resasCache);
+    }
+
+    // ── Init date ──
+    document.getElementById('dateInput').value = today();
+    updateDateLabel();
+    loadResas();
+
+    function updateDateLabel() {
+      const d = document.getElementById('dateInput').value;
+      document.getElementById('dateLabelEl').textContent = d ? formatDate(d) : '';
+    }
+
+    function shiftDate(n) {
+      const inp = document.getElementById('dateInput');
+      const d = new Date(inp.value || today());
+      d.setDate(d.getDate() + n);
+      inp.value = d.toISOString().split('T')[0];
+      updateDateLabel();
+      loadResas();
+    }
+
+    async function loadResas() {
+      updateDateLabel();
+      const d = document.getElementById('dateInput').value;
+      document.getElementById('resaList').innerHTML = '<div class="empty-state">Chargement…</div>';
+      try {
+        const data = await api.get(`/api/reservations?date=${d}`);
+        if (!Array.isArray(data)) {
+          document.getElementById('resaList').innerHTML = '<div class="empty-state">Erreur de chargement</div>';
+          return;
+        }
+        resasCache = data;
+        renderList(data);
+      } catch(e) {
+        document.getElementById('resaList').innerHTML = '<div class="empty-state">Erreur de chargement</div>';
+      }
+    }
+
+    function renderList(resas) {
+      let sorted = [...resas].sort((a, b) => a.time.localeCompare(b.time));
+      if (joyFilterActive) sorted = sorted.filter(r => r.joy_event_id);
+
+      const all = [...resas];
+      const active = all.filter(r => r.status !== 'cancelled');
+      const pax = active.reduce((s, r) => s + (r.party_size || 0), 0);
+      const confirmed = all.filter(r => r.status === 'confirmed').length;
+      const joyCount  = all.filter(r => r.joy_event_id).length;
+      const nonPlacees = all.filter(r => {
+        if (r.status !== 'confirmed') return false;
+        const ids = JSON.parse(r.table_ids || '[]');
+        return ids.length === 0;
+      }).length;
+
+      // Chips
+      document.getElementById('chips').innerHTML = `
+        <span class="chip total">${all.length} rés.</span>
+        <span class="chip blue">${pax} couverts</span>
+        <span class="chip orange">${nonPlacees} non placées</span>
+        <span class="chip green">${confirmed} confirmées</span>
+        ${joyCount ? `<span class="chip" style="border-color:rgba(205,164,67,.5);color:var(--primary)">🔗 ${joyCount} Joy</span>` : ''}
+      `;
+
+      const list = document.getElementById('resaList');
+      if (!sorted.length) {
+        list.innerHTML = `<div class="empty-state">${joyFilterActive ? 'Aucune réservation Joy ce jour' : 'Aucune réservation ce jour'}</div>`;
+        return;
+      }
+
+      list.innerHTML = sorted.map(r => {
+        const tableIds = JSON.parse(r.table_ids || '[]');
+        const isJoy = !!r.joy_event_id;
+        const hasFiles = (r.attach_count || 0) > 0;
+        return `
+          <div class="res-card st-${r.status}" id="card-${r.id}" style="${isJoy ? 'border-top:2px solid rgba(205,164,67,.4)' : ''}${hasFiles ? ';border-right:3px solid rgba(205,164,67,.6)' : ''}">
+            <div class="res-top">
+              <span class="res-time">${r.time}</span>
+              <span class="res-name">
+                ${r.customer_name}
+                ${isJoy ? '<span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;background:rgba(205,164,67,.15);color:var(--primary);margin-left:5px">🔗 Joy</span>' : ''}
+              </span>
+              <span class="res-pax">${r.party_size}p</span>
+            </div>
+            <div class="res-meta">
+              ${r.phone ? `<a href="tel:${r.phone}">📞 ${r.phone}</a>` : ''}
+              ${r.space ? `<span>📍 ${r.space}</span>` : ''}
+              ${tableIds.length ? `<span>🍽️ Table(s) assignée(s)</span>` : '<span style="color:var(--orange)">⚠️ Pas de table</span>'}
+              ${hasFiles ? `<span class="devis-badge">📎 ${r.attach_count} fichier${r.attach_count > 1 ? 's' : ''}</span>` : ''}
+            </div>
+            ${r.notes ? `<div class="res-notes">${r.notes}</div>` : ''}
+            ${r.admin_notes ? `<div class="res-notes" style="color:var(--primary)">📌 ${r.admin_notes}</div>` : ''}
+            <div class="res-actions">
+              <button class="btn-edit" onclick="openEdit(${r.id})">✏️ Modifier</button>
+              <button class="btn-devis" onclick="openEdit(${r.id}, true)">📎 ${hasFiles ? `Devis (${r.attach_count})` : 'Devis'}</button>
+              <select style="font-size:12px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text)" onchange="quickStatus(${r.id}, this.value)">
+                <option value="confirmed" ${r.status==='confirmed'?'selected':''}>Confirmée</option>
+                <option value="arrived"   ${r.status==='arrived'?'selected':''}>Arrivée</option>
+                <option value="no_show"   ${r.status==='no_show'?'selected':''}>No show</option>
+                <option value="cancelled" ${r.status==='cancelled'?'selected':''}>Annulée</option>
+              </select>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function quickStatus(id, status) {
+      await api.put(`/api/reservations/${id}`, { status });
+      await loadResas();
+    }
+
+    // ── Ouvrir le drawer édition ──
+    async function openEdit(id, scrollToAttach = false) {
+      editingId = id;
+      const r = resasCache.find(x => x.id === id);
+      if (!r) return;
+
+      const isJoy = !!r.joy_event_id;
+      document.getElementById('editTitle').textContent = isJoy ? `🔗 Joy — ${r.customer_name}` : `✏️ ${r.customer_name}`;
+      document.getElementById('eName').value = r.customer_name || '';
+      document.getElementById('ePhone').value = r.phone || '';
+      document.getElementById('eDate').value = r.date || '';
+      document.getElementById('eTime').value = r.time || '';
+      document.getElementById('ePax').value = r.party_size || 2;
+      document.getElementById('eSpace').value = r.space || '';
+      document.getElementById('eNotes').value = r.notes || '';
+      document.getElementById('eAdminNotes').value = r.admin_notes || '';
+      document.getElementById('eStatus').value = r.status || 'confirmed';
+
+      // Résa Joy : certains champs sont gérés par Joy.io
+      const joyNote = document.getElementById('joyNote');
+      const deleteBtn = document.getElementById('deleteBtn');
+      if (isJoy) {
+        joyNote.style.display = '';
+        deleteBtn.style.display = 'none';
+      } else {
+        joyNote.style.display = 'none';
+        deleteBtn.style.display = '';
+      }
+
+      // Pièces jointes
+      await loadAttachments(id);
+
+      openPanel();
+
+      if (scrollToAttach) {
+        setTimeout(() => {
+          document.getElementById('attachList').scrollIntoView({ behavior: 'smooth' });
+        }, 350);
+      }
+    }
+
+    function openCreate() {
+      editingId = null;
+      document.getElementById('editTitle').textContent = '+ Nouvelle réservation';
+      document.getElementById('eName').value = '';
+      document.getElementById('ePhone').value = '';
+      document.getElementById('eDate').value = document.getElementById('dateInput').value || today();
+      document.getElementById('eTime').value = '';
+      document.getElementById('ePax').value = 2;
+      document.getElementById('eSpace').value = '';
+      document.getElementById('eNotes').value = '';
+      document.getElementById('eAdminNotes').value = '';
+      document.getElementById('eStatus').value = 'confirmed';
+      document.getElementById('attachList').innerHTML = '<div style="font-size:12px;color:var(--text-muted)">Aucun fichier</div>';
+      document.getElementById('joyNote').style.display = 'none';
+      document.getElementById('deleteBtn').style.display = 'none';
+      openPanel();
+    }
+
+    function openPanel() {
+      document.getElementById('editOverlay').classList.add('open');
+      document.getElementById('editDrawer').classList.add('open');
+      document.querySelector('.page').classList.add('panel-open');
+    }
+
+    function closeEdit() {
+      document.getElementById('editOverlay').classList.remove('open');
+      document.getElementById('editDrawer').classList.remove('open');
+      document.querySelector('.page').classList.remove('panel-open');
+      editingId = null;
+    }
+
+    async function saveEdit() {
+      const body = {
+        customer_name: document.getElementById('eName').value.trim(),
+        phone: document.getElementById('ePhone').value.trim(),
+        date: document.getElementById('eDate').value,
+        time: document.getElementById('eTime').value,
+        party_size: parseInt(document.getElementById('ePax').value) || 2,
+        space: document.getElementById('eSpace').value.trim(),
+        notes: document.getElementById('eNotes').value.trim(),
+        admin_notes: document.getElementById('eAdminNotes').value.trim(),
+        status: document.getElementById('eStatus').value,
+      };
+      if (!body.customer_name || !body.date || !body.time) {
+        showToast('Nom, date et heure sont requis', 'error');
+        return;
+      }
+      if (editingId) {
+        await api.put(`/api/reservations/${editingId}`, body);
+        showToast('Réservation mise à jour', 'success');
+      } else {
+        await api.post('/api/reservations', body);
+        showToast('Réservation créée', 'success');
+      }
+      closeEdit();
+      loadResas();
+    }
+
+    function openDevis() {
+      const r = resasCache.find(x => x.id === editingId);
+      const name  = r ? encodeURIComponent(r.customer_name) : '';
+      const pax   = r ? r.party_size : '';
+      const date  = r ? r.date : '';
+      const id    = editingId || '';
+      window.location.href = `/resa/devis.html?resaId=${id}&name=${name}&pax=${pax}&date=${date}`;
+    }
+
+    async function deleteResa() {
+      if (!editingId) return;
+      if (!confirm('Supprimer cette réservation ?')) return;
+      await api.delete(`/api/reservations/${editingId}`);
+      showToast('Réservation supprimée', 'info');
+      closeEdit();
+      loadResas();
+    }
+
+    function stepPax(n) {
+      const inp = document.getElementById('ePax');
+      inp.value = Math.max(1, (parseInt(inp.value) || 2) + n);
+    }
+
+    // ── Pièces jointes ──
+    async function loadAttachments(id) {
+      const list = document.getElementById('attachList');
+      const attachments = await api.get(`/api/reservations/${id}/attachments`);
+      if (!attachments || !attachments.length) {
+        list.innerHTML = '<div style="font-size:12px;color:var(--text-muted)">Aucun fichier</div>';
+        return;
+      }
+      list.innerHTML = attachments.map(a => {
+        const icon = a.mimetype?.startsWith('image/') ? '🖼️'
+          : a.mimetype === 'application/pdf' ? '📕'
+          : a.mimetype?.includes('word') ? '📝'
+          : a.mimetype?.includes('sheet') || a.mimetype?.includes('excel') ? '📊'
+          : '📄';
+        const size = a.size > 1048576 ? (a.size/1048576).toFixed(1)+' Mo'
+          : a.size > 1024 ? Math.round(a.size/1024)+' Ko'
+          : a.size+' o';
+        const viewerUrl = `/resa/viewer.html?id=${a.id}&name=${encodeURIComponent(a.original_name)}&mime=${encodeURIComponent(a.mimetype||'')}&size=${a.size}&from=/resa/gestion.html`;
+        return `
+          <div class="attach-item">
+            <span class="attach-icon">${icon}</span>
+            <span class="attach-name" title="${a.original_name}">${a.original_name}</span>
+            <span class="attach-size">${size}</span>
+            <div class="attach-actions">
+              <a href="${viewerUrl}">Voir</a>
+              <button onclick="deleteAttachment(${a.id})">🗑</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function uploadFiles() {
+      if (!editingId) return;
+      const input = document.getElementById('fileInput');
+      const files = input.files;
+      if (!files.length) return;
+
+      for (const file of files) {
+        const fd = new FormData();
+        fd.append('file', file);
+        const r = await fetch(`/api/reservations/${editingId}/attachments`, {
+          method: 'POST',
+          body: fd
+        });
+        if (r.status === 401) { window.location.href = '/'; return; }
+      }
+      input.value = '';
+      showToast('Fichier(s) ajouté(s)', 'success');
+      await loadAttachments(editingId);
+      loadResas();
+    }
+
+    async function deleteAttachment(attachId) {
+      if (!confirm('Supprimer ce fichier ?')) return;
+      await api.delete(`/api/attachments/${attachId}`);
+      if (editingId) await loadAttachments(editingId);
+      loadResas();
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Dashboard Réservations — Mos Pub Mercière</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MOS">
+  <meta name="theme-color" content="#0b2d3e">
+  <style>
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .kpi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      text-align: center;
+    }
+    .kpi-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--primary);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .kpi-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+    .kpi-card.orange .kpi-value { color: var(--orange); }
+    .kpi-card.green  .kpi-value { color: var(--success); }
+    .kpi-card.blue   .kpi-value { color: var(--info); }
+    .kpi-card.red    .kpi-value { color: var(--danger); }
+
+    .day-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .day-row:last-child { border-bottom: none; }
+    .day-label {
+      min-width: 90px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      padding-top: 3px;
+    }
+    .day-label.today { color: var(--primary); }
+    .day-resas {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .mini-resa {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+    .mini-resa-time {
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--text-muted);
+      min-width: 36px;
+    }
+    .mini-resa-name { flex: 1; }
+    .mini-resa-pax {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dot-confirmed { background: var(--info); }
+    .dot-arrived   { background: var(--success); }
+    .dot-cancelled { background: #555; }
+    .dot-no_show   { background: var(--danger); }
+
+    .alert-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: rgba(232,84,84,.07);
+      border: 1px solid rgba(232,84,84,.2);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    .empty-state {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+      padding: 20px 0;
+    }
+
+    @media(min-width: 900px) {
+      .container-sm { max-width: 1100px !important; }
+      .kpi-grid { grid-template-columns: repeat(4, 1fr); }
+      .dash-cols {
+        display: grid;
+        grid-template-columns: 1fr 1.8fr;
+        gap: 16px;
+        align-items: start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav" id="nav"></nav>
+
+  <div class="page">
+    <div class="container-sm">
+
+      <!-- En-tête -->
+      <div class="card-header" style="margin-bottom:16px">
+        <h1 class="card-title" id="pageTitle">📊 Dashboard</h1>
+        <span id="dateLabel" style="font-size:13px;color:var(--text-muted)"></span>
+      </div>
+
+      <!-- KPIs aujourd'hui -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header">
+          <span class="card-title">Aujourd'hui</span>
+        </div>
+        <div class="kpi-grid" id="kpiGrid">
+          <div class="kpi-card"><div class="kpi-value" id="kpiTotal">—</div><div class="kpi-label">Réservations</div></div>
+          <div class="kpi-card blue"><div class="kpi-value" id="kpiCouverts">—</div><div class="kpi-label">Couverts</div></div>
+          <div class="kpi-card orange"><div class="kpi-value" id="kpiNonPlacees">—</div><div class="kpi-label">Non placées</div></div>
+          <div class="kpi-card green"><div class="kpi-value" id="kpiConfirmees">—</div><div class="kpi-label">Confirmées</div></div>
+        </div>
+      </div>
+
+      <div class="dash-cols">
+        <!-- Alertes -->
+        <div class="card" id="alertsCard">
+          <div class="card-header">
+            <span class="card-title">⚠️ Alertes</span>
+          </div>
+          <div id="alertsList"><div class="empty-state">Aucune alerte</div></div>
+        </div>
+
+        <!-- 7 prochains jours -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">📅 7 prochains jours</span>
+          </div>
+          <div id="weekList"><div class="empty-state">Chargement…</div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    buildNav('resa-dashboard');
+
+    const todayStr = today();
+
+    document.getElementById('dateLabel').textContent = formatDate(todayStr);
+
+    async function loadDashboard() {
+      // Aujourd'hui
+      const todayResas = await api.get(`/api/reservations?date=${todayStr}`);
+      if (!todayResas) return;
+
+      const active = todayResas.filter(r => r.status !== 'cancelled');
+      const confirmed = todayResas.filter(r => r.status === 'confirmed');
+      const nonPlacees = confirmed.filter(r => {
+        const ids = JSON.parse(r.table_ids || '[]');
+        return ids.length === 0;
+      });
+      const couverts = active.reduce((s, r) => s + (r.party_size || 0), 0);
+
+      document.getElementById('kpiTotal').textContent = todayResas.length;
+      document.getElementById('kpiCouverts').textContent = couverts;
+      document.getElementById('kpiNonPlacees').textContent = nonPlacees.length;
+      document.getElementById('kpiConfirmees').textContent = confirmed.length;
+
+      // Alertes
+      const alertsList = document.getElementById('alertsList');
+      const alerts = [];
+      nonPlacees.forEach(r => {
+        alerts.push(`📍 <strong>${r.customer_name}</strong> (${r.time}) — table non assignée`);
+      });
+      const now = new Date();
+      confirmed.forEach(r => {
+        if (r.date === todayStr) {
+          const [h, m] = r.time.split(':').map(Number);
+          const resaTime = new Date(); resaTime.setHours(h, m, 0);
+          const diff = (now - resaTime) / 60000;
+          if (diff > 15) alerts.push(`🔴 <strong>${r.customer_name}</strong> (${r.time}) — en retard`);
+        }
+      });
+      alertsList.innerHTML = alerts.length
+        ? alerts.map(a => `<div class="alert-item">${a}</div>`).join('')
+        : '<div class="empty-state">Aucune alerte</div>';
+
+      // 7 jours
+      const from = todayStr;
+      const to = new Date(Date.now() + 6 * 86400000).toISOString().split('T')[0];
+      const weekResas = await api.get(`/api/reservations/range?from=${from}&to=${to}`);
+      if (!weekResas) return;
+
+      // Grouper par date
+      const byDate = {};
+      weekResas.forEach(r => {
+        if (!byDate[r.date]) byDate[r.date] = [];
+        byDate[r.date].push(r);
+      });
+
+      const weekList = document.getElementById('weekList');
+      const dates = Object.keys(byDate).sort();
+      if (!dates.length) {
+        weekList.innerHTML = '<div class="empty-state">Aucune réservation cette semaine</div>';
+        return;
+      }
+
+      weekList.innerHTML = dates.map(d => {
+        const resasDay = byDate[d].sort((a, b) => a.time.localeCompare(b.time));
+        const isToday = d === todayStr;
+        const label = isToday ? "Aujourd'hui" : formatDate(d);
+        const total = resasDay.filter(r => r.status !== 'cancelled').length;
+        const paxTotal = resasDay.filter(r => r.status !== 'cancelled').reduce((s, r) => s + (r.party_size || 0), 0);
+        return `
+          <div class="day-row">
+            <div class="day-label ${isToday ? 'today' : ''}">
+              ${label}<br>
+              <span style="font-size:11px;font-weight:400">${total} rés. · ${paxTotal} couverts</span>
+            </div>
+            <div class="day-resas">
+              ${resasDay.slice(0, 5).map(r => `
+                <div class="mini-resa">
+                  <span class="status-dot dot-${r.status}"></span>
+                  <span class="mini-resa-time">${r.time}</span>
+                  <span class="mini-resa-name">${r.customer_name}</span>
+                  <span class="mini-resa-pax">${r.party_size}p</span>
+                </div>
+              `).join('')}
+              ${resasDay.length > 5 ? `<div style="font-size:11px;color:var(--text-muted);padding-left:16px">+${resasDay.length - 5} autres…</div>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    loadDashboard();
+  </script>
+</body>
+</html>

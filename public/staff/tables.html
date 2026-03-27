@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Plan de Salle — Mos Pub Mercière</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MOS">
+  <meta name="theme-color" content="#0b2d3e">
+  <style>
+
+    /* ══ BANNIÈRE MODE ASSIGNATION ══ */
+    .assign-banner {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: rgba(205,164,67,.15);
+      border: 1.5px solid rgba(205,164,67,.5);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      margin-bottom: 14px;
+    }
+    .assign-banner.visible { display: flex; }
+    .assign-banner-icon { font-size: 1.3rem; flex-shrink: 0; }
+    .assign-banner-text { flex: 1; font-size: .88rem; line-height: 1.4; }
+    .assign-banner-text strong { color: var(--primary); }
+    .assign-banner-cancel { background: rgba(255,255,255,.08); border: 1px solid var(--border); border-radius: 20px; color: var(--text-muted); font-size: .8rem; padding: 5px 12px; cursor: pointer; white-space: nowrap; }
+
+    /* ══ ZONE TABS ══ */
+    .zone-tabs { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 12px; padding-bottom: 2px; scrollbar-width: none; }
+    .zone-tabs::-webkit-scrollbar { display: none; }
+    .zone-tab { padding: 8px 14px; border-radius: var(--radius-sm); font-size: .82rem; font-weight: 600; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; transition: all .15s; white-space: nowrap; flex-shrink: 0; }
+    .zone-tab.active { background: var(--primary-dim); border-color: var(--primary); color: var(--primary); }
+    .zone-tab .zt-cnt { font-size: .7rem; margin-left: 4px; opacity: .8; }
+
+    /* ══ LÉGENDE ══ */
+    .legend { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: .75rem; color: var(--text-muted); }
+    .legend-dot { width: 9px; height: 9px; border-radius: 50%; border: 2px solid; flex-shrink: 0; }
+
+    /* ══ ZOOM BAR ══ */
+    .zoom-bar { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 8px; }
+    .zoom-btn { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .zoom-lbl { font-size: .82rem; color: var(--text-muted); min-width: 44px; text-align: center; }
+    @media (min-width: 769px) { .zoom-bar { display: none; } }
+
+    /* ══ CANVAS PLAN ══ */
+    .floor-wrap { width: 100%; overflow: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-card); position: relative; touch-action: pan-x pan-y; }
+    .floor-canvas { transform-origin: top left; position: relative; }
+    .floor-table { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px solid; cursor: pointer; transition: transform .1s, box-shadow .1s; user-select: none; }
+    .floor-table:hover  { transform: scale(1.04); box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+    @media (max-width: 768px) { .floor-table:hover { transform: none; box-shadow: none; } }
+    .floor-table.is-deco { cursor: default !important; border-style: dashed !important; background: rgba(255,255,255,.03) !important; color: rgba(255,255,255,.2) !important; border-color: rgba(255,255,255,.12) !important; }
+    .floor-table.is-deco:hover { transform: none !important; box-shadow: none !important; }
+
+    /* Couleurs tables selon statut visuel des réservations */
+    :root { --orange: #F5A624; --orange-bg: rgba(245,166,36,.12); }
+    .s-available { background: var(--bg-surface); border-color: var(--border); color: var(--text-muted); }
+    .s-unplaced  { background: var(--orange-bg);  border-color: var(--orange);   color: var(--orange); }
+    .s-placed    { background: var(--info-bg);     border-color: var(--info);     color: var(--info); }
+    .s-arrived   { background: var(--success-bg);  border-color: var(--success);  color: var(--success); }
+    .s-late      { background: var(--danger-bg);   border-color: var(--danger);   color: var(--danger); animation: pulse 1s infinite; }
+    /* Rétro-compatibilité */
+    .s-reserved  { background: var(--info-bg); border-color: var(--info); color: var(--info); }
+    .s-setup     { background: var(--orange-bg); border-color: var(--orange); color: var(--orange); }
+    .s-alert     { background: var(--danger-bg); border-color: var(--danger); color: var(--danger); animation: pulse 1s infinite; }
+
+    /* En mode assignation */
+    .assign-mode .floor-table.s-available   { border-color: var(--success) !important; box-shadow: 0 0 0 2px rgba(76,175,106,.25); }
+    .assign-mode .floor-table.s-selected    { border-color: var(--primary) !important; box-shadow: 0 0 0 3px rgba(205,164,67,.4); background: rgba(205,164,67,.18) !important; color: var(--primary) !important; }
+    .assign-mode .floor-table:not(.s-available):not(.s-selected):not(.is-deco) { opacity: .4; pointer-events: none; }
+
+    /* Bouton flottant confirmation multi-tables */
+    .confirm-assign-btn {
+      display: none;
+      position: fixed;
+      bottom: calc(var(--bottom-nav-height) + 16px + env(safe-area-inset-bottom));
+      left: 50%; transform: translateX(-50%);
+      z-index: 190;
+      background: var(--primary);
+      color: #000;
+      font-weight: 700;
+      font-size: .95rem;
+      padding: 14px 28px;
+      border-radius: 30px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(205,164,67,.5);
+      white-space: nowrap;
+    }
+    .confirm-assign-btn.visible { display: block; }
+
+    /* ══ LISTE RÉSAS ══ */
+    .res-list { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+    .res-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-left: 4px solid var(--border);
+      border-radius: var(--radius); padding: 12px 14px; cursor: pointer;
+      display: grid; grid-template-columns: 56px 1fr auto; gap: 0 12px; align-items: start;
+      transition: background .12s;
+    }
+    .res-card:active { background: var(--bg-surface); }
+    /* Statuts visuels (nouveau système) */
+    .res-card.vs-unplaced  { border-left-color: var(--orange); }
+    .res-card.vs-placed    { border-left-color: var(--info); }
+    .res-card.vs-arrived   { border-left-color: var(--success); }
+    .res-card.vs-late      { border-left-color: var(--danger); animation: blink-card 1.5s ease-in-out infinite; }
+    .res-card.vs-no_show   { border-left-color: var(--danger); opacity: .7; }
+    .res-card.vs-cancelled { border-left-color: #555; opacity: .55; }
+    .res-card.vs-cancelled .rc-time,.res-card.vs-cancelled .rc-name { text-decoration:line-through; color:#666; }
+    @keyframes blink-card  { 0%,100%{opacity:1} 50%{opacity:.55} }
+    /* Couleurs select statut */
+    .vs-unplaced  { border-color:var(--orange)!important;  color:var(--orange)!important; }
+    .vs-placed    { border-color:var(--info)!important;    color:var(--info)!important; }
+    .vs-arrived   { border-color:var(--success)!important; color:var(--success)!important; }
+    .vs-late      { border-color:var(--danger)!important;  color:var(--danger)!important; }
+    .vs-no_show   { border-color:var(--danger)!important;  color:var(--danger)!important; }
+    .vs-cancelled { border-color:#555!important;           color:#555!important; }
+    /* Rétro-compatibilité */
+    .res-card.st-confirmed { border-left-color: var(--info); }
+    .res-card.st-arrived   { border-left-color: var(--success); }
+    .res-card.st-no_show   { border-left-color: var(--danger); }
+    .res-card.st-cancelled { border-left-color: var(--danger); background: rgba(232,84,84,.04); opacity: .7; }
+    .rc-time { font-size: 1.2rem; font-weight: 800; letter-spacing: -.5px; padding-top: 2px; line-height: 1; }
+    .rc-body { min-width: 0; }
+    .rc-name { font-size: .95rem; font-weight: 700; }
+    .rc-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 4px; font-size: .76rem; color: var(--text-muted); }
+    .rc-notes { font-size: .73rem; color: var(--text-muted); font-style: italic; margin-top: 3px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .rc-tbl-ok  { font-size: .7rem; font-weight: 600; color: var(--success); background: var(--success-bg); border: 1px solid rgba(76,175,106,.3); border-radius: 20px; padding: 1px 7px; }
+    .rc-tbl-nok { font-size: .7rem; font-weight: 600; color: var(--danger); background: var(--danger-bg); border: 1px solid rgba(232,84,84,.3); border-radius: 20px; padding: 1px 7px; animation: blink 1.4s ease-in-out infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .rc-status-col { grid-column: 3; align-self: center; }
+    .status-pill { font-size: .7rem; font-weight: 600; border-radius: 20px; padding: 4px 9px; border: 1.5px solid; background: transparent; cursor: pointer; white-space: nowrap; appearance: none; -webkit-appearance: none; color: inherit; font-family: inherit; }
+    .sp-confirmed { border-color: var(--info);    color: var(--info); }
+    .sp-arrived   { border-color: var(--success); color: var(--success); }
+    .sp-no_show   { border-color: var(--danger);  color: var(--danger); }
+    .sp-cancelled { border-color: #555;           color: #555; }
+
+    /* ══ MODE ÉDITION ══ */
+    .edit-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; padding: 10px 14px; background: rgba(205,164,67,.08); border: 1.5px solid rgba(205,164,67,.3); border-radius: var(--radius); }
+    .floor-canvas.edit-mode { background: repeating-linear-gradient(var(--bg-card) 0 39px, var(--border) 39px 40px), repeating-linear-gradient(90deg, var(--bg-card) 0 39px, var(--border) 39px 40px) !important; }
+    .edit-mode .floor-table:not(.is-deco) { cursor: grab !important; }
+    .edit-mode .floor-table:not(.is-deco):active { cursor: grabbing !important; }
+    .s-edit-selected { background: rgba(205,164,67,.18) !important; border-color: var(--primary) !important; color: var(--primary) !important; box-shadow: 0 0 0 3px rgba(205,164,67,.35); }
+
+    /* ══ DRAWER (table modal + new res) ══ */
+    .drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 200; opacity: 0; pointer-events: none; transition: opacity .25s; }
+    .drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+    .drawer { position: fixed; bottom: 0; left: 0; right: 0; z-index: 201; background: var(--bg-card); border-radius: 20px 20px 0 0; box-shadow: 0 -8px 40px rgba(0,0,0,.5); transform: translateY(102%); transition: transform .3s cubic-bezier(.32,.72,0,1); max-height: 92dvh; display: flex; flex-direction: column; }
+    .drawer.open { transform: translateY(0); }
+    @media (min-width: 641px) {
+      .drawer-backdrop { backdrop-filter: blur(2px); }
+      .drawer { bottom: auto; top: 50%; left: 50%; right: auto; transform: translate(-50%,-40%); opacity: 0; border-radius: var(--radius); width: 100%; max-width: 480px; max-height: 90vh; transition: transform .25s ease, opacity .25s ease; }
+      .drawer.open { transform: translate(-50%,-50%); opacity: 1; }
+    }
+    .drawer-handle { width: 40px; height: 4px; background: rgba(255,255,255,.15); border-radius: 2px; margin: 10px auto 0; flex-shrink: 0; }
+    @media (min-width: 641px) { .drawer-handle { display: none; } }
+    .drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px 12px; flex-shrink: 0; border-bottom: 1px solid var(--border); }
+    .drawer-title { font-size: 1rem; font-weight: 700; }
+    .drawer-close { width: 30px; height: 30px; border-radius: 50%; background: var(--bg-surface); color: var(--text-muted); display: flex; align-items: center; justify-content: center; font-size: .9rem; cursor: pointer; border: none; flex-shrink: 0; }
+    .drawer-body { overflow-y: auto; padding: 16px 20px; flex: 1; -webkit-overflow-scrolling: touch; }
+    .drawer-footer { display: flex; gap: 8px; padding: 10px 20px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); flex-shrink: 0; }
+    .drawer-footer .btn { flex: 1; justify-content: center; min-height: 44px; }
+
+    /* Table detail drawer */
+    .tbl-detail-res { background: var(--bg-surface); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 14px; }
+    .tbl-detail-name { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
+    .tbl-detail-meta { font-size: .82rem; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 4px 10px; }
+    .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .status-btn { padding: 10px; border-radius: var(--radius-sm); font-size: .82rem; font-weight: 600; cursor: pointer; border: 1.5px solid; background: transparent; text-align: center; transition: background .12s; }
+    .status-btn:active { filter: brightness(1.2); }
+
+    /* Formulaire */
+    .frow { display: flex; flex-direction: column; gap: 14px; }
+    .fgroup { display: flex; flex-direction: column; gap: 6px; }
+    .fgroup label { font-size: .82rem; font-weight: 600; color: var(--text-muted); }
+    .f2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .stepper { display: flex; align-items: stretch; border: 1.5px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; height: 46px; }
+    .stepper-btn { width: 48px; background: var(--bg-surface); color: var(--text); font-size: 1.4rem; font-weight: 300; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; touch-action: manipulation; }
+    .stepper-btn:active { background: var(--bg-hover); }
+    .stepper-val { flex: 1; text-align: center; background: var(--bg-card); border: none; border-left: 1.5px solid var(--border); border-right: 1.5px solid var(--border); color: var(--text); font-size: 1.2rem; font-weight: 700; font-family: inherit; padding: 0; -moz-appearance: textfield; }
+    .stepper-val::-webkit-inner-spin-button, .stepper-val::-webkit-outer-spin-button { -webkit-appearance: none; }
+  </style>
+</head>
+<body>
+  <nav class="nav" id="nav"></nav>
+  <div id="alertBanners"></div>
+
+  <div class="page">
+    <div class="container" style="max-width:1400px">
+
+      <div class="page-header">
+        <div>
+          <div class="page-title">🍽️ Plan de Salle</div>
+          <div class="page-subtitle" id="dateLabel"></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="date" id="viewDate" style="width:auto" onchange="loadAll()">
+          <button class="btn btn-secondary btn-sm" id="editModeBtn" onclick="toggleEditMode()" style="display:none">🔧 Modifier le plan</button>
+          <button class="btn btn-primary" onclick="openNewRes()">+ Réservation</button>
+        </div>
+      </div>
+
+      <!-- Bannière mode assignation -->
+      <div class="assign-banner" id="assignBanner">
+        <div class="assign-banner-icon">🎯</div>
+        <div class="assign-banner-text">
+          Sélectionner une table pour <strong id="assignName"></strong><br>
+          <span style="color:var(--text-muted);font-size:.78rem">Tapez sur une table libre (verte) pour l'assigner</span>
+        </div>
+        <button class="assign-banner-cancel" onclick="cancelAssign()">✕ Annuler</button>
+      </div>
+
+      <!-- Barre mode édition -->
+      <div id="editToolbar" style="display:none;" class="edit-toolbar">
+        <span style="font-size:.82rem;font-weight:700;color:var(--primary);">🔧 Mode édition</span>
+        <button class="btn btn-primary btn-sm" onclick="addTable('square')">+ Table</button>
+        <button class="btn btn-secondary btn-sm" onclick="addTable('round')">⬤ Ronde</button>
+        <button class="btn btn-secondary btn-sm" onclick="addDeco()">+ Décoration</button>
+        <button class="btn btn-danger btn-sm" id="btnDelTable" style="display:none" onclick="deleteSelected()">🗑 Supprimer</button>
+      </div>
+
+      <div class="zone-tabs" id="zoneTabs"></div>
+
+      <div class="zoom-bar">
+        <button class="zoom-btn" onclick="changeZoom(-.15)">−</button>
+        <span class="zoom-lbl" id="zoomLbl">100%</span>
+        <button class="zoom-btn" onclick="changeZoom(.15)">+</button>
+        <button class="zoom-btn" onclick="resetZoom()" title="Ajuster">⊡</button>
+      </div>
+
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--bg-surface);border-color:var(--border)"></div>Libre</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--orange-bg);border-color:var(--orange)"></div>À placer</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--info-bg);border-color:var(--info)"></div>Placé</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--success-bg);border-color:var(--success)"></div>Arrivé</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--danger-bg);border-color:var(--danger)"></div>En retard</div>
+      </div>
+
+      <div class="floor-wrap" id="floorWrap">
+        <div class="floor-canvas" id="floorCanvas"></div>
+      </div>
+
+      <!-- Liste résas -->
+      <div class="card mt-3">
+        <div class="card-header">
+          <div class="card-title">📋 Réservations du jour</div>
+          <span class="badge badge-muted" id="resCount">0</span>
+        </div>
+        <div class="res-list" id="resList"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Bouton flottant confirmation multi-tables -->
+  <button class="confirm-assign-btn" id="confirmAssignBtn" onclick="confirmMultiAssign()">
+    ✓ Confirmer (<span id="confirmCount">0</span> table<span id="confirmPlural"></span>)
+  </button>
+
+  <!-- ══ DRAWER TABLE ══ -->
+  <div class="drawer-backdrop" id="backdrop" onclick="closeDrawer()"></div>
+
+  <div class="drawer" id="tableDrawer">
+    <div class="drawer-handle"></div>
+    <div class="drawer-head">
+      <div>
+        <div class="drawer-title" id="tblName">Table</div>
+        <div style="font-size:.78rem;color:var(--text-muted)" id="tblCap"></div>
+      </div>
+      <button class="drawer-close" onclick="closeDrawer()">✕</button>
+    </div>
+    <div class="drawer-body">
+      <div id="tblResDetail"></div>
+      <div style="margin-bottom:14px">
+        <div style="font-size:.8rem;font-weight:600;color:var(--text-muted);margin-bottom:10px">Changer le statut :</div>
+        <div class="status-grid">
+          <button class="status-btn" style="border-color:var(--border);color:var(--text-muted)" onclick="setTableStatus('available')">⬜ Libre</button>
+          <button class="status-btn" style="border-color:var(--info);color:var(--info)" onclick="setTableStatus('reserved')">📋 Réservée</button>
+          <button class="status-btn" style="border-color:var(--warning);color:var(--warning)" onclick="setTableStatus('setup')">🪑 Mise en place</button>
+          <button class="status-btn" style="border-color:var(--success);color:var(--success)" onclick="setTableStatus('arrived')">✅ Arrivés</button>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div style="margin-top:14px">
+        <div style="font-size:.8rem;font-weight:600;color:var(--text-muted);margin-bottom:8px">Associer une réservation :</div>
+        <select id="assignResSelect" style="margin-bottom:10px"></select>
+        <button class="btn btn-secondary btn-full btn-sm" onclick="assignReservation()">Associer à cette table</button>
+      </div>
+    </div>
+    <div class="drawer-footer">
+      <button class="btn btn-secondary" onclick="closeDrawer()">Fermer</button>
+      <button class="btn btn-primary" onclick="openNewResForTable()">+ Résa pour cette table</button>
+    </div>
+  </div>
+
+  <!-- ══ DRAWER NOUVELLE RÉSA ══ -->
+  <div class="drawer" id="resDrawer">
+    <div class="drawer-handle"></div>
+    <div class="drawer-head">
+      <div class="drawer-title" id="resDrawerTitle">Nouvelle réservation</div>
+      <button class="drawer-close" onclick="closeResDrawer()">✕</button>
+    </div>
+    <div class="drawer-body">
+      <form id="resForm" onsubmit="saveRes(event)">
+        <input type="hidden" id="resId">
+        <div class="frow">
+          <div class="fgroup"><label>Nom du client *</label><input type="text" id="resName" required autocomplete="off"></div>
+          <div class="fgroup"><label>Téléphone</label><input type="tel" id="resPhone"></div>
+          <div class="f2">
+            <div class="fgroup"><label>Date *</label><input type="date" id="resDate" required></div>
+            <div class="fgroup"><label>Heure *</label><input type="time" id="resTime" required></div>
+          </div>
+          <div class="fgroup">
+            <label>Personnes</label>
+            <div class="stepper">
+              <button type="button" class="stepper-btn" onclick="stepParty(-1)">−</button>
+              <input type="number" id="resParty" class="stepper-val" min="1" max="99" value="2" readonly>
+              <button type="button" class="stepper-btn" onclick="stepParty(1)">+</button>
+            </div>
+          </div>
+          <div class="fgroup"><label>Notes</label><textarea id="resNotes" rows="2" style="resize:vertical"></textarea></div>
+        </div>
+      </form>
+    </div>
+    <div class="drawer-footer">
+      <button class="btn btn-secondary" onclick="closeResDrawer()">Annuler</button>
+      <button class="btn btn-danger" id="btnDelRes" onclick="deleteRes()" style="display:none;flex:0 0 auto;padding:0 14px">🗑</button>
+      <button type="submit" form="resForm" class="btn btn-primary">Enregistrer</button>
+    </div>
+  </div>
+
+  <!-- ══ DRAWER PROPRIÉTÉS TABLE (mode édition) ══ -->
+  <div class="drawer" id="propDrawer">
+    <div class="drawer-handle"></div>
+    <div class="drawer-head">
+      <div class="drawer-title">✏️ Propriétés</div>
+      <button class="drawer-close" onclick="closeDrawer()">✕</button>
+    </div>
+    <div class="drawer-body">
+      <div class="frow">
+        <div class="fgroup"><label>Nom</label><input type="text" id="propName" oninput="updateSelected()"></div>
+        <div class="f2">
+          <div class="fgroup"><label>Capacité</label><input type="number" id="propCapacity" min="0" max="50" oninput="updateSelected()"></div>
+          <div class="fgroup"><label>Forme</label>
+            <select id="propShape" onchange="updateSelected()">
+              <option value="square">Carré</option>
+              <option value="round">Rond</option>
+            </select>
+          </div>
+        </div>
+        <div class="f2">
+          <div class="fgroup"><label>Largeur (px)</label><input type="number" id="propWidth" min="40" max="200" oninput="updateSelected()"></div>
+          <div class="fgroup"><label>Hauteur (px)</label><input type="number" id="propHeight" min="40" max="200" oninput="updateSelected()"></div>
+        </div>
+        <div class="fgroup"><label>Zone</label>
+          <select id="propZone" onchange="updateSelected()">
+            <option value="salle_bas">Salle Bas</option>
+            <option value="etage">Étage</option>
+            <option value="coin_canap">Coin Canapé</option>
+            <option value="terrasse">Terrasse</option>
+          </select>
+        </div>
+        <div class="fgroup" style="flex-direction:row;align-items:center;gap:10px;">
+          <input type="checkbox" id="propDeco" onchange="updateSelected()" style="width:20px;height:20px;flex-shrink:0;">
+          <label style="margin:0;font-size:.82rem;">Élément décoratif</label>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-footer">
+      <button class="btn btn-secondary" onclick="closeDrawer()">Fermer</button>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/api.js"></script>
+  <script>
+    buildNav('tables');
+    const socket = io();
+
+    const ZONES = [
+      { key:'salle_bas',  label:'Salle Bas',  canvasW:1150, canvasH:660 },
+      { key:'etage',      label:'Étage',       canvasW:1000, canvasH:650 },
+      { key:'coin_canap', label:'Coin Canapé', canvasW:980,  canvasH:560 },
+      { key:'terrasse',   label:'Terrasse',    canvasW:1120, canvasH:580 },
+    ];
+    const ST = {
+      confirmed: { label:'📋 Confirmée', cls:'sp-confirmed' },
+      arrived:   { label:'✅ Arrivée',   cls:'sp-arrived'   },
+      no_show:   { label:'⚠️ No show',   cls:'sp-no_show'   },
+      cancelled: { label:'❌ Annulée',   cls:'sp-cancelled' },
+    };
+
+    let currentZone = 'salle_bas';
+    let tables = [], reservations = [], tableStatuses = {};
+    let selectedTableId = null;
+    let viewScale = 1, fitScale = 1;
+    const activeAlerts = new Set();
+
+    // ── Mode assignation multi-tables ────────────────────────────────────────
+    const urlParams = new URLSearchParams(location.search);
+    const assignToResId = parseInt(urlParams.get('assignTo')) || null;
+    const assignReturnDate = urlParams.get('date') || null;
+    const assignResName = decodeURIComponent(urlParams.get('name') || '');
+    const assignReturnTo = urlParams.get('returnTo') || null;
+    const isAssignMode = !!assignToResId;
+    let selectedTableIds = new Set(); // tables cochées en mode assignation
+
+    if (isAssignMode) {
+      document.getElementById('assignBanner').classList.add('visible');
+      document.getElementById('assignName').textContent = assignResName;
+    }
+
+    function cancelAssign() {
+      if (assignReturnTo) {
+        window.location.href = assignReturnTo + (assignReturnDate ? '?date='+assignReturnDate : '');
+      } else {
+        window.location.href = `/staff/reservations.html${assignReturnDate ? '?date='+assignReturnDate : ''}`;
+      }
+    }
+
+    function updateConfirmBtn() {
+      const n = selectedTableIds.size;
+      document.getElementById('confirmCount').textContent = n;
+      document.getElementById('confirmPlural').textContent = n > 1 ? 's' : '';
+      document.getElementById('confirmAssignBtn').classList.toggle('visible', n > 0);
+    }
+
+    async function confirmMultiAssign() {
+      const ids = Array.from(selectedTableIds);
+      await api.put(`/api/reservations/${assignToResId}`, { table_ids: ids });
+      const base = assignReturnTo || '/staff/reservations.html';
+      window.location.href = `${base}?date=${assignReturnDate||today()}&assigned=1`;
+    }
+
+    // ── Dates & chargement ───────────────────────────────────────────────────
+    const viewDate = document.getElementById('viewDate');
+    viewDate.value = assignReturnDate || today();
+    document.getElementById('dateLabel').textContent = formatDate(viewDate.value);
+
+    async function loadAll() {
+      const date = viewDate.value;
+      document.getElementById('dateLabel').textContent = formatDate(date);
+      const [t, r] = await Promise.all([api.get('/api/tables'), api.get(`/api/reservations?date=${date}`)]);
+      if (!t || !r) return;
+      tables = t; reservations = r;
+      // En mode assignation : pré-sélectionner les tables déjà assignées
+      if (isAssignMode && selectedTableIds.size === 0) {
+        const cur = reservations.find(x => x.id === assignToResId);
+        if (cur?.table_ids?.length) cur.table_ids.forEach(id => selectedTableIds.add(id));
+        updateConfirmBtn();
+      }
+      computeStatuses();
+      renderZoneTabs();
+      renderFloor();
+      renderResList();
+      populateAssignSelect();
+    }
+
+    // Calcule le statut visuel d'une réservation (identique à reservations.html)
+    function computeVS(r) {
+      if (r.status === 'cancelled') return 'cancelled';
+      if (r.status === 'no_show')   return 'no_show';
+      if (r.status === 'arrived')   return 'arrived';
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (r.date === todayStr && r.time) {
+        const resMs = new Date(r.date + 'T' + r.time + ':00').getTime();
+        if (!isNaN(resMs) && Date.now() - resMs > 15 * 60 * 1000) return 'late';
+      }
+      const ids = Array.isArray(r.table_ids) ? r.table_ids : [];
+      return ids.length > 0 ? 'placed' : 'unplaced';
+    }
+
+    function computeStatuses() {
+      tableStatuses = {};
+      tables.forEach(t => { tableStatuses[t.id] = 'available'; });
+      // Priorité : arrived > late > placed > unplaced
+      const PRIORITY = { arrived:4, late:3, placed:2, unplaced:1 };
+      reservations.forEach(r => {
+        const ids = Array.isArray(r.table_ids) && r.table_ids.length ? r.table_ids
+                  : (r.table_id ? [r.table_id] : []);
+        if (!ids.length || r.status === 'cancelled') return;
+        const vs = computeVS(r);
+        ids.forEach(tid => {
+          const cur = tableStatuses[tid];
+          if ((PRIORITY[vs]||0) > (PRIORITY[cur]||0)) tableStatuses[tid] = vs;
+        });
+      });
+    }
+
+    // ── Zone tabs ────────────────────────────────────────────────────────────
+    function renderZoneTabs() {
+      document.getElementById('zoneTabs').innerHTML = ZONES.map(z => {
+        const zt = tables.filter(t => t.zone === z.key && !t.is_decoration);
+        const occ = zt.filter(t => ['reserved','arrived','alert'].includes(tableStatuses[t.id])).length;
+        return `<button class="zone-tab ${z.key===currentZone?'active':''}" onclick="switchZone('${z.key}')">
+          ${z.label}<span class="zt-cnt">${occ>0?`${occ}/${zt.length}`:zt.length}</span>
+        </button>`;
+      }).join('');
+    }
+    function switchZone(key) { currentZone = key; renderZoneTabs(); renderFloor(); }
+
+    // ── Zoom / scale ─────────────────────────────────────────────────────────
+    function scaleToFit() {
+      const canvas = document.getElementById('floorCanvas');
+      const wrap   = document.getElementById('floorWrap');
+      const nW = parseInt(canvas.style.width) || 1150;
+      const nH = parseInt(canvas.style.height) || 660;
+      const avW = wrap.clientWidth - 2;
+      fitScale  = avW < nW ? avW / nW : 1;
+      viewScale = fitScale;
+      applyScale(canvas, wrap, nH);
+    }
+    function applyScale(canvas, wrap, nH) {
+      canvas = canvas || document.getElementById('floorCanvas');
+      wrap   = wrap   || document.getElementById('floorWrap');
+      nH = nH || parseInt(canvas.style.height) || 660;
+      canvas.style.transform = `scale(${viewScale})`;
+      wrap.style.height = Math.ceil(nH * viewScale) + 'px';
+      wrap.style.overflow = viewScale <= fitScale ? 'hidden' : 'auto';
+      const lbl = document.getElementById('zoomLbl');
+      if (lbl) lbl.textContent = Math.round(viewScale * 100) + '%';
+    }
+    function changeZoom(d) {
+      const canvas = document.getElementById('floorCanvas');
+      const nH = parseInt(canvas.style.height) || 660;
+      viewScale = Math.min(2.5, Math.max(fitScale, viewScale + d));
+      applyScale(canvas, document.getElementById('floorWrap'), nH);
+    }
+    function resetZoom() {
+      const canvas = document.getElementById('floorCanvas');
+      const nH = parseInt(canvas.style.height) || 660;
+      viewScale = fitScale;
+      applyScale(canvas, document.getElementById('floorWrap'), nH);
+    }
+    // Pinch-to-zoom
+    (function() {
+      let pinching = false, startDist = 0, startScale = 1;
+      document.addEventListener('touchstart', e => {
+        if (e.target.closest('.floor-canvas') && e.touches.length === 2) {
+          pinching = true;
+          startDist  = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+          startScale = viewScale;
+        }
+      }, { passive: true });
+      document.addEventListener('touchmove', e => {
+        if (!pinching || e.touches.length < 2) return;
+        e.preventDefault();
+        const d = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+        viewScale = Math.min(2.5, Math.max(fitScale, startScale * (d / startDist)));
+        const canvas = document.getElementById('floorCanvas');
+        applyScale(canvas, document.getElementById('floorWrap'), parseInt(canvas.style.height) || 660);
+      }, { passive: false });
+      document.addEventListener('touchend', () => { pinching = false; });
+    })();
+
+    // ── Rendu du plan ────────────────────────────────────────────────────────
+    function renderFloor() {
+      const canvas = document.getElementById('floorCanvas');
+      const zone = ZONES.find(z => z.key === currentZone);
+      canvas.style.width  = (zone?.canvasW ?? 1150) + 'px';
+      canvas.style.height = (zone?.canvasH ?? 660) + 'px';
+      canvas.className = 'floor-canvas' + (isAssignMode ? ' assign-mode' : '') + (editMode ? ' edit-mode' : '');
+      canvas.innerHTML = '';
+
+      const zoneTables = tables.filter(t => t.zone === currentZone);
+      if (!zoneTables.length) {
+        canvas.innerHTML = `<div class="empty-state" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)">
+          <div class="empty-state-icon">🪑</div><div class="empty-state-text">Aucune table</div></div>`;
+        scaleToFit(); return;
+      }
+
+      const statusIcon = { available:'', unplaced:'🟠', placed:'📋', arrived:'✅', late:'🔴', no_show:'⚠️' };
+
+      zoneTables.forEach(t => {
+        const status = t.is_decoration ? 'deco' : (tableStatuses[t.id] || 'available');
+        const res = !t.is_decoration ? reservations.find(r => {
+          const ids = Array.isArray(r.table_ids) && r.table_ids.length ? r.table_ids : (r.table_id ? [r.table_id] : []);
+          return ids.includes(t.id) && r.status !== 'cancelled';
+        }) : null;
+        const fs = Math.min(t.width, t.height) > 75 ? '.78rem' : '.62rem';
+
+        const isEditSelected = editMode && editSelectedId === t.id;
+        const displayStatus  = editMode ? 'available' : status;
+
+        const el = document.createElement('div');
+        el.id = 'tbl-' + t.id;
+        el.className = `floor-table${t.is_decoration && !editMode ? ' is-deco' : (isEditSelected ? ' s-edit-selected' : ' s-'+displayStatus)}`;
+        el.style.cssText = `left:${t.x}px;top:${t.y}px;width:${t.width}px;height:${t.height}px;border-radius:${t.shape==='round'?'50%':'10px'};border:2px solid;`;
+
+        if (editMode) {
+          // Mode édition : affichage simplifié + drag & drop
+          el.innerHTML = `<div style="font-size:${fs};font-weight:700;text-align:center;padding:2px">${t.name}</div>
+            ${!t.is_decoration ? `<div style="font-size:.6rem;opacity:.6">${t.capacity}p</div>` : ''}`;
+          el.addEventListener('mousedown',  e => startDrag(e, t.id));
+          el.addEventListener('touchstart', e => startDrag(e, t.id), { passive: false });
+          el.addEventListener('click',      e => { e.stopPropagation(); selectTableEdit(t.id); });
+        } else if (t.is_decoration) {
+          el.innerHTML = `<div style="font-size:${fs};font-weight:700;text-align:center;padding:2px">${t.name}</div>`;
+        } else {
+          el.innerHTML = `
+            <div style="font-size:${fs};font-weight:700;">${t.name}</div>
+            ${res ? `<div style="font-size:.55rem;text-align:center;line-height:1.2;padding:0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${res.customer_name}<br>${res.time}·${res.party_size}p</div>`
+                  : `<div style="font-size:.62rem;opacity:.6">${t.capacity}p</div>`}
+            <div style="font-size:.72rem;margin-top:1px">${statusIcon[status]||''}</div>`;
+
+          if (isAssignMode) {
+            if (selectedTableIds.has(t.id)) {
+              el.classList.remove('s-' + status);
+              el.classList.add('s-selected');
+            }
+            if (status === 'available' || selectedTableIds.has(t.id)) {
+              el.addEventListener('click', () => toggleTableSelection(t.id, t.name, el, status));
+            }
+          } else {
+            el.addEventListener('click', () => openTableDrawer(t.id));
+          }
+        }
+        canvas.appendChild(el);
+      });
+      scaleToFit();
+    }
+
+    // ── Mode assignation : toggle sélection ─────────────────────────────────
+    function toggleTableSelection(tableId, tableName, el, originalStatus) {
+      if (selectedTableIds.has(tableId)) {
+        // Désélectionner
+        selectedTableIds.delete(tableId);
+        el.classList.remove('s-selected');
+        el.classList.add('s-' + originalStatus);
+      } else {
+        // Sélectionner
+        selectedTableIds.add(tableId);
+        el.classList.remove('s-' + originalStatus);
+        el.classList.add('s-selected');
+      }
+      updateConfirmBtn();
+    }
+
+    // ── Rendu liste résas ────────────────────────────────────────────────────
+    function renderResList() {
+      const el = document.getElementById('resList');
+      document.getElementById('resCount').textContent = reservations.length;
+      if (!reservations.length) {
+        el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📅</div><div class="empty-state-text">Aucune réservation ce jour</div></div>`;
+        return;
+      }
+      // Couleurs statut visuel (identique à reservations.html)
+      const VS_CLS = { unplaced:'vs-unplaced', placed:'vs-placed', arrived:'vs-arrived', late:'vs-late', no_show:'vs-no_show', cancelled:'vs-cancelled' };
+      el.innerHTML = reservations.map(r => {
+        const vs = computeVS(r);
+        const tableNames = Array.isArray(r.table_names) && r.table_names.length ? r.table_names : (r.table_name ? [r.table_name] : []);
+        const tbl = tableNames.length
+          ? tableNames.map(n=>`<span class="rc-tbl-ok">🪑 ${n}</span>`).join(' ')
+          : `<span class="rc-tbl-nok">Sans table</span>`;
+        return `<div class="res-card ${VS_CLS[vs]||''}" onclick="editRes(${r.id})">
+          <div class="rc-time">${r.time||'—'}</div>
+          <div class="rc-body">
+            <div class="rc-name">${r.customer_name}</div>
+            <div class="rc-meta">
+              <span>👥 ${r.party_size} pers.</span>
+              ${r.phone?`<span>📞 ${r.phone}</span>`:''}
+              ${r.space?`<span>📍 ${r.space}</span>`:''}
+              ${tbl}
+            </div>
+            ${r.notes?`<div class="rc-notes">📝 ${r.notes}</div>`:''}
+          </div>
+          <div class="rc-status-col" onclick="event.stopPropagation()">
+            <select class="status-pill ${VS_CLS[vs]||''}" onchange="changeResStatus(${r.id},this.value)">
+              <option value="confirmed" ${r.status==='confirmed'?'selected':''}>📋 Confirmée</option>
+              <option value="arrived"   ${r.status==='arrived'?'selected':''}>✅ Arrivée</option>
+              <option value="no_show"   ${r.status==='no_show'?'selected':''}>⚠️ No show</option>
+              <option value="cancelled" ${r.status==='cancelled'?'selected':''}>❌ Annulée</option>
+            </select>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function populateAssignSelect() {
+      document.getElementById('assignResSelect').innerHTML =
+        `<option value="">— Aucune réservation —</option>` +
+        reservations.filter(r=>r.status!=='cancelled').map(r=>
+          `<option value="${r.id}">${r.time} · ${r.customer_name} (${r.party_size}p)</option>`
+        ).join('');
+    }
+
+    // ── Drawer table ─────────────────────────────────────────────────────────
+    function openTableDrawer(tableId) {
+      selectedTableId = tableId;
+      const t = tables.find(x => x.id === tableId);
+      const res = reservations.find(r => {
+        const ids = Array.isArray(r.table_ids) && r.table_ids.length ? r.table_ids : (r.table_id ? [r.table_id] : []);
+        return ids.includes(tableId) && r.status !== 'cancelled';
+      });
+
+      document.getElementById('tblName').textContent = t.name;
+      document.getElementById('tblCap').textContent = `Capacité : ${t.capacity} personnes`;
+
+      const detail = document.getElementById('tblResDetail');
+      if (res) {
+        detail.innerHTML = `
+          <div class="tbl-detail-res">
+            <div class="tbl-detail-name">${res.customer_name}</div>
+            <div class="tbl-detail-meta">
+              <span>🕐 ${res.time}</span>
+              <span>👥 ${res.party_size} pers.</span>
+              ${res.phone?`<span>📞 ${res.phone}</span>`:''}
+              ${res.space?`<span>📍 ${res.space}</span>`:''}
+            </div>
+            ${res.notes?`<div style="font-size:.75rem;color:var(--text-muted);margin-top:5px;font-style:italic">📝 ${res.notes}</div>`:''}
+          </div>`;
+        document.getElementById('assignResSelect').value = res.id;
+      } else {
+        detail.innerHTML = `<div style="color:var(--text-muted);font-size:.85rem;margin-bottom:14px">Aucune réservation pour cette table.</div>`;
+        document.getElementById('assignResSelect').value = '';
+      }
+
+      openDrawer('tableDrawer');
+    }
+
+    async function setTableStatus(status) {
+      if (!selectedTableId) return;
+      const res = reservations.find(r => {
+        const ids = Array.isArray(r.table_ids) && r.table_ids.length ? r.table_ids : (r.table_id ? [r.table_id] : []);
+        return ids.includes(selectedTableId) && r.status !== 'cancelled';
+      });
+      if (res) {
+        const mapped = status==='available'?'confirmed':status==='arrived'?'arrived':'confirmed';
+        await changeResStatus(res.id, mapped);
+      } else {
+        tableStatuses[selectedTableId] = status;
+        renderFloor();
+      }
+      closeDrawer();
+      showToast('Statut mis à jour', 'success');
+    }
+
+    async function changeResStatus(resId, status) {
+      await api.put(`/api/reservations/${resId}`, { status });
+      const r = reservations.find(x => x.id === resId);
+      if (r) r.status = status;
+      computeStatuses(); renderFloor(); renderResList();
+    }
+
+    async function assignReservation() {
+      const resId = document.getElementById('assignResSelect').value;
+      if (!selectedTableId) return;
+      if (resId) {
+        await api.put(`/api/reservations/${resId}`, { table_id: selectedTableId });
+        const r = reservations.find(x => x.id === parseInt(resId));
+        if (r) { r.table_id = selectedTableId; r.table_name = tables.find(t=>t.id===selectedTableId)?.name; }
+      }
+      computeStatuses(); renderFloor(); renderResList();
+      closeDrawer();
+      showToast('Réservation associée ✓', 'success');
+    }
+
+    // ── Drawer réservation ───────────────────────────────────────────────────
+    function openNewRes() {
+      document.getElementById('resDrawerTitle').textContent = 'Nouvelle réservation';
+      document.getElementById('resId').value    = '';
+      document.getElementById('resName').value  = '';
+      document.getElementById('resPhone').value = '';
+      document.getElementById('resDate').value  = viewDate.value;
+      document.getElementById('resTime').value  = '';
+      document.getElementById('resParty').value = 2;
+      document.getElementById('resNotes').value = '';
+      document.getElementById('btnDelRes').style.display = 'none';
+      openDrawer('resDrawer');
+      setTimeout(()=>document.getElementById('resName').focus(), 350);
+    }
+
+    function openNewResForTable() {
+      closeDrawer();
+      openNewRes();
+    }
+
+    function editRes(id) {
+      const r = reservations.find(x => x.id === id);
+      if (!r) return;
+      document.getElementById('resDrawerTitle').textContent = 'Modifier la réservation';
+      document.getElementById('resId').value    = r.id;
+      document.getElementById('resName').value  = r.customer_name;
+      document.getElementById('resPhone').value = r.phone||'';
+      document.getElementById('resDate').value  = r.date;
+      document.getElementById('resTime').value  = r.time;
+      document.getElementById('resParty').value = r.party_size;
+      document.getElementById('resNotes').value = r.notes||'';
+      document.getElementById('btnDelRes').style.display = 'flex';
+      openDrawer('resDrawer');
+    }
+
+    async function saveRes(e) {
+      e.preventDefault();
+      const id = document.getElementById('resId').value;
+      const body = {
+        customer_name: document.getElementById('resName').value.trim(),
+        phone:  document.getElementById('resPhone').value.trim()||null,
+        date:   document.getElementById('resDate').value,
+        time:   document.getElementById('resTime').value,
+        party_size: parseInt(document.getElementById('resParty').value)||2,
+        notes:  document.getElementById('resNotes').value.trim()||null,
+      };
+      const res = id ? await api.put(`/api/reservations/${id}`, body) : await api.post('/api/reservations', body);
+      if (res?.error) { showToast(res.error, 'error'); return; }
+      closeDrawer();
+      showToast(id ? 'Réservation modifiée ✓' : 'Réservation créée ✓', 'success');
+      loadAll();
+    }
+
+    async function deleteRes() {
+      const id = document.getElementById('resId').value;
+      if (!id || !confirm('Supprimer cette réservation ?')) return;
+      await api.delete(`/api/reservations/${id}`);
+      closeDrawer();
+      showToast('Réservation supprimée', 'info');
+      loadAll();
+    }
+
+    function stepParty(d) {
+      const i = document.getElementById('resParty');
+      i.value = Math.max(1, Math.min(99, (parseInt(i.value)||2)+d));
+    }
+
+    function closeResDrawer() { closeDrawer(); }
+
+    // ── Gestion drawers ───────────────────────────────────────────────────────
+    function openDrawer(id) {
+      document.getElementById('backdrop').classList.add('open');
+      document.getElementById(id).classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeDrawer() {
+      ['tableDrawer','resDrawer','propDrawer'].forEach(id => document.getElementById(id).classList.remove('open'));
+      document.getElementById('backdrop').classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    // ── Alertes 15min ─────────────────────────────────────────────────────────
+    socket.on('alert:no_show', data => {
+      if (activeAlerts.has(data.reservationId)) return;
+      activeAlerts.add(data.reservationId);
+      playAlertSound();
+      const container = document.getElementById('alertBanners');
+      const el = document.createElement('div');
+      el.id = 'alert-' + data.reservationId;
+      el.className = 'alert-banner';
+      el.style.cssText = `position:fixed;top:calc(var(--nav-height) + 12px);left:50%;transform:translateX(-50%);z-index:500;width:calc(100% - 40px);max-width:600px;`;
+      el.innerHTML = `<div class="alert-banner-icon">⚠️</div><div class="alert-banner-text">${data.message}</div>
+        <button class="alert-banner-close" onclick="dismissAlert(${data.reservationId})">OK</button>`;
+      document.body.appendChild(el);
+      const r = reservations.find(x => x.id === data.reservationId);
+      if (r) r.status = 'no_show';
+      tableStatuses[data.tableId] = 'alert';
+      renderZoneTabs(); renderFloor();
+    });
+
+    socket.on('alert:cancel', ({reservationId}) => {
+      activeAlerts.delete(reservationId);
+      const el = document.getElementById('alert-' + reservationId);
+      if (el) el.remove();
+    });
+
+    async function dismissAlert(resId) {
+      activeAlerts.delete(resId);
+      const el = document.getElementById('alert-' + resId);
+      if (el) el.remove();
+      await api.put(`/api/reservations/${resId}`, { status: 'no_show' });
+      const r = reservations.find(x => x.id === resId);
+      if (r) r.status = 'no_show';
+      computeStatuses(); renderZoneTabs(); renderFloor(); renderResList();
+    }
+
+    // ── Temps réel ────────────────────────────────────────────────────────────
+    socket.on('reservation:updated', r => {
+      if (r.date !== viewDate.value) return;
+      const i = reservations.findIndex(x => x.id === r.id);
+      if (i>=0) reservations[i]=r; else reservations.push(r);
+      computeStatuses(); renderZoneTabs(); renderFloor(); renderResList(); populateAssignSelect();
+    });
+    socket.on('reservation:deleted', ({id}) => {
+      reservations = reservations.filter(r => r.id !== id);
+      computeStatuses(); renderZoneTabs(); renderFloor(); renderResList(); populateAssignSelect();
+    });
+    socket.on('table:created', t => { tables.push(t); renderZoneTabs(); renderFloor(); });
+    socket.on('table:updated', t => { const i=tables.findIndex(x=>x.id===t.id); if(i>=0) tables[i]=t; renderZoneTabs(); renderFloor(); });
+    socket.on('table:deleted', ({id}) => { tables=tables.filter(t=>t.id!==id); renderZoneTabs(); renderFloor(); });
+
+    // ── Mode édition ─────────────────────────────────────────────────────────
+    let editMode = false, editSelectedId = null;
+    let dragging = null, dragOffset = { x:0, y:0 }, saveTimer = null;
+
+    function toggleEditMode() {
+      editMode = !editMode;
+      const btn = document.getElementById('editModeBtn');
+      btn.textContent  = editMode ? '✓ Terminer' : '🔧 Modifier le plan';
+      btn.className    = editMode ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+      document.getElementById('editToolbar').style.display = editMode ? 'flex' : 'none';
+      if (!editMode) { editSelectedId = null; closeDrawer(); }
+      document.getElementById('btnDelTable').style.display = 'none';
+      renderZoneTabs(); renderFloor();
+    }
+
+    function selectTableEdit(id) {
+      editSelectedId = id;
+      document.getElementById('btnDelTable').style.display = 'flex';
+      const t = tables.find(x => x.id === id);
+      if (!t) return;
+      document.getElementById('propName').value     = t.name     || '';
+      document.getElementById('propCapacity').value = t.capacity || 0;
+      document.getElementById('propShape').value    = t.shape    || 'square';
+      document.getElementById('propWidth').value    = t.width    || 65;
+      document.getElementById('propHeight').value   = t.height   || 65;
+      document.getElementById('propZone').value     = t.zone     || 'salle_bas';
+      document.getElementById('propDeco').checked   = !!t.is_decoration;
+      openDrawer('propDrawer');
+      renderFloor();
+    }
+
+    function updateSelected() {
+      if (!editSelectedId) return;
+      const t = tables.find(x => x.id === editSelectedId);
+      if (!t) return;
+      t.name          = document.getElementById('propName').value;
+      t.capacity      = parseInt(document.getElementById('propCapacity').value) || 0;
+      t.shape         = document.getElementById('propShape').value;
+      t.width         = parseInt(document.getElementById('propWidth').value)    || 65;
+      t.height        = parseInt(document.getElementById('propHeight').value)   || 65;
+      t.zone          = document.getElementById('propZone').value;
+      t.is_decoration = document.getElementById('propDeco').checked ? 1 : 0;
+      const old = document.getElementById('tbl-' + editSelectedId);
+      if (old) old.remove();
+      if (t.zone === currentZone) {
+        const canvas = document.getElementById('floorCanvas');
+        const isEditSelected = true;
+        const fs = Math.min(t.width, t.height) > 75 ? '.78rem' : '.62rem';
+        const el = document.createElement('div');
+        el.id = 'tbl-' + t.id;
+        el.className = `floor-table s-edit-selected`;
+        el.style.cssText = `left:${t.x}px;top:${t.y}px;width:${t.width}px;height:${t.height}px;border-radius:${t.shape==='round'?'50%':'10px'};border:2px solid;`;
+        el.innerHTML = `<div style="font-size:${fs};font-weight:700;text-align:center;padding:2px">${t.name}</div>${!t.is_decoration?`<div style="font-size:.6rem;opacity:.6">${t.capacity}p</div>`:''}`;
+        el.addEventListener('mousedown',  e => startDrag(e, t.id));
+        el.addEventListener('touchstart', e => startDrag(e, t.id), { passive: false });
+        el.addEventListener('click', e => { e.stopPropagation(); selectTableEdit(t.id); });
+        canvas.appendChild(el);
+      }
+      scheduleSave(editSelectedId, t);
+      renderZoneTabs();
+    }
+
+    function scheduleSave(id, data) {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(async () => { await api.put(`/api/tables/${id}`, data); }, 600);
+    }
+
+    async function addTable(shape) {
+      const count = tables.filter(t => t.zone === currentZone && !t.is_decoration).length + 1;
+      const t = await api.post('/api/tables', {
+        name: `T${count}`, zone: currentZone,
+        x: 50, y: 50,
+        width: shape === 'round' ? 80 : 65,
+        height: shape === 'round' ? 80 : 65,
+        shape, capacity: 2, is_decoration: 0
+      });
+      if (!t) return;
+      tables.push(t);
+      renderZoneTabs(); renderFloor();
+      selectTableEdit(t.id);
+    }
+
+    async function addDeco() {
+      const t = await api.post('/api/tables', {
+        name: 'Bar', zone: currentZone,
+        x: 50, y: 50, width: 120, height: 40,
+        shape: 'square', capacity: 0, is_decoration: 1
+      });
+      if (!t) return;
+      tables.push(t);
+      renderZoneTabs(); renderFloor();
+      selectTableEdit(t.id);
+    }
+
+    async function deleteSelected() {
+      if (!editSelectedId || !confirm('Supprimer cette table ?')) return;
+      await api.delete(`/api/tables/${editSelectedId}`);
+      tables = tables.filter(t => t.id !== editSelectedId);
+      editSelectedId = null;
+      document.getElementById('btnDelTable').style.display = 'none';
+      closeDrawer();
+      renderZoneTabs(); renderFloor();
+    }
+
+    // Drag & drop
+    function startDrag(e, id) {
+      if (!editMode) return;
+      e.stopPropagation(); e.preventDefault();
+      dragging = id;
+      const el     = document.getElementById('tbl-' + id);
+      const canvas = document.getElementById('floorCanvas').getBoundingClientRect();
+      const cx = e.touches ? e.touches[0].clientX : e.clientX;
+      const cy = e.touches ? e.touches[0].clientY : e.clientY;
+      dragOffset.x = cx - canvas.left - parseFloat(el.style.left);
+      dragOffset.y = cy - canvas.top  - parseFloat(el.style.top);
+    }
+    function moveDrag(cx, cy) {
+      if (!dragging) return;
+      const canvas = document.getElementById('floorCanvas').getBoundingClientRect();
+      const el = document.getElementById('tbl-' + dragging);
+      if (!el) return;
+      const x = Math.max(0, Math.round((cx - canvas.left - dragOffset.x) / 5) * 5);
+      const y = Math.max(0, Math.round((cy - canvas.top  - dragOffset.y) / 5) * 5);
+      el.style.left = x + 'px';
+      el.style.top  = y + 'px';
+    }
+    function endDrag() {
+      if (!dragging) return;
+      const el = document.getElementById('tbl-' + dragging);
+      if (el) {
+        const x = parseFloat(el.style.left), y = parseFloat(el.style.top);
+        const t = tables.find(t => t.id === dragging);
+        if (t) { t.x = x; t.y = y; }
+        scheduleSave(dragging, { x, y });
+      }
+      dragging = null;
+    }
+    document.addEventListener('mousemove', e => moveDrag(e.clientX, e.clientY));
+    document.addEventListener('touchmove', e => { if (dragging) { e.preventDefault(); moveDrag(e.touches[0].clientX, e.touches[0].clientY); } }, { passive: false });
+    document.addEventListener('mouseup',  endDrag);
+    document.addEventListener('touchend', endDrag);
+
+    loadAll().then(() => {
+      // Afficher le bouton édition aux admins/managers uniquement
+      const u = window.__mosUser;
+      if (u?.role === 'admin' || u?.role === 'manager') {
+        document.getElementById('editModeBtn').style.display = '';
+      }
+    });
+  </script>
+</body>
+</html>

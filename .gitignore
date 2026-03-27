@@ -1,0 +1,8 @@
+node_modules/
+db/mos.db
+db/mos.db-shm
+db/mos.db-wal
+uploads/reservations/*
+!uploads/reservations/.gitkeep
+.DS_Store
+.env

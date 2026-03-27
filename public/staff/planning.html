@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Planning — Mos Pub Mercière</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MOS">
+  <meta name="theme-color" content="#0b2d3e">
+  <style>
+    @media(min-width: 900px) {
+      .planning-layout {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        align-items: start;
+      }
+      .container-sm { max-width: 1100px !important; }
+    }
+
+    .form-group { margin-bottom: 14px; }
+    .form-group label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      margin-bottom: 5px;
+    }
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+      box-sizing: border-box;
+      font-family: inherit;
+    }
+    .form-group input[readonly] { opacity: .6; cursor: default; }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* ── Signature ── */
+    .sig-wrap {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      background: #fff;
+      position: relative;
+    }
+    .sig-wrap canvas { display: block; width: 100%; touch-action: none; cursor: crosshair; }
+    .sig-placeholder {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      color: #aaa; font-size: 13px;
+      pointer-events: none; user-select: none;
+    }
+    .sig-clear {
+      position: absolute; top: 8px; right: 8px;
+      background: rgba(0,0,0,.12); border: none; border-radius: 6px;
+      color: #555; font-size: 11px; padding: 3px 8px; cursor: pointer;
+    }
+
+    /* ── Sent state ── */
+    .sent-state { display:none; text-align:center; padding:32px 16px; }
+    .sent-state .sent-icon  { font-size: 3rem; margin-bottom: 8px; }
+    .sent-state .sent-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 6px; }
+    .sent-state .sent-sub   { font-size: 13px; color: var(--text-muted); }
+
+    /* ── Admin section ── */
+    .admin-section { margin-top: 24px; }
+
+    /* ── Demandes ── */
+    .demande-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    .demande-info { flex: 1; min-width: 0; }
+    .demande-info strong { display: block; font-size: 13px; }
+    .demande-info small  { color: var(--text-muted); font-size: 11px; }
+    .demande-motif { font-size: 11px; color: var(--text-muted); font-style: italic; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .demande-name  { font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 2px; }
+
+    .demande-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .btn-approve { padding: 4px 10px; border-radius: 6px; border: 1px solid var(--success); background: var(--success-bg); color: var(--success); font-size: 11px; font-weight: 700; cursor: pointer; }
+    .btn-reject  { padding: 4px 10px; border-radius: 6px; border: 1px solid var(--danger);  background: rgba(232,84,84,.08); color: var(--danger);  font-size: 11px; font-weight: 700; cursor: pointer; }
+
+    .status-pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .sp-pending  { background: rgba(245,166,36,.15);  color: var(--orange); }
+    .sp-approved { background: var(--success-bg);     color: var(--success); }
+    .sp-rejected { background: rgba(232,84,84,.12);   color: var(--danger); }
+
+    .empty-state { text-align:center; color:var(--text-muted); font-size:13px; padding:24px 0; }
+  </style>
+</head>
+<body>
+  <nav class="nav" id="nav"></nav>
+
+  <div class="page">
+    <div class="container-sm">
+
+      <div class="card-header" style="margin-bottom:18px">
+        <h1 class="card-title">📅 Planning & Congés</h1>
+      </div>
+
+      <div class="planning-layout">
+
+        <!-- ── Colonne gauche : formulaire ── -->
+        <div class="card">
+          <div class="card-header" style="margin-bottom:16px">
+            <span class="card-title" style="font-size:13px">🏖️ Nouvelle demande de congés</span>
+          </div>
+
+          <div id="congeForm">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Employé(e)</label>
+                <input type="text" id="fName" readonly>
+              </div>
+              <div class="form-group">
+                <label>Date de la demande</label>
+                <input type="text" id="fToday" readonly>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Début souhaité</label>
+                <input type="date" id="fFrom" required>
+              </div>
+              <div class="form-group">
+                <label>Fin souhaitée</label>
+                <input type="date" id="fTo" required>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Motif (facultatif)</label>
+              <textarea id="fMotif" placeholder="Ex : vacances, raison personnelle…"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label>Signature</label>
+              <div class="sig-wrap">
+                <canvas id="sigCanvas" height="120"></canvas>
+                <span class="sig-placeholder" id="sigPlaceholder">Signez ici</span>
+                <button class="sig-clear" onclick="clearSig()">Effacer</button>
+              </div>
+            </div>
+
+            <button class="btn btn-primary" style="width:100%;margin-top:6px" onclick="submitConge()">📨 Envoyer la demande</button>
+          </div>
+
+          <div class="sent-state" id="sentState">
+            <div class="sent-icon">✅</div>
+            <div class="sent-title">Demande envoyée !</div>
+            <div class="sent-sub">Votre demande a été transmise à la direction.</div>
+            <button class="btn" style="margin-top:20px" onclick="resetForm()">Nouvelle demande</button>
+          </div>
+        </div>
+
+        <!-- ── Colonne droite : mes demandes + admin ── -->
+        <div>
+          <!-- Mes demandes -->
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-header" style="margin-bottom:16px">
+              <span class="card-title" style="font-size:13px">📋 Mes demandes</span>
+            </div>
+            <div id="demandesList"><div class="empty-state">Chargement…</div></div>
+          </div>
+
+          <!-- Section admin (visible uniquement admin/manager) -->
+          <div class="card admin-section" id="adminSection" style="display:none">
+            <div class="card-header" style="margin-bottom:16px">
+              <span class="card-title" style="font-size:13px">🔐 Toutes les demandes</span>
+              <button class="btn" style="font-size:11px;padding:5px 10px" onclick="loadAllDemandes()">↺ Actualiser</button>
+            </div>
+            <div id="allDemandesList"><div class="empty-state">Chargement…</div></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    buildNav('planning');
+
+    document.getElementById('fToday').value = new Date().toLocaleDateString('fr-FR');
+
+    let currentUser = null;
+
+    // Pré-remplir le nom + afficher section admin si besoin
+    async function initUser() {
+      // Attendre que buildNav ait défini window.__mosUser, sinon appeler l'API
+      if (!window.__mosUser) await api.get('/api/auth/me'); // force la résolution de buildNav
+      currentUser = window.__mosUser;
+      if (!currentUser) currentUser = await api.get('/api/auth/me');
+      if (currentUser) {
+        document.getElementById('fName').value = currentUser.name;
+        if (currentUser.role === 'admin' || currentUser.role === 'manager') {
+          document.getElementById('adminSection').style.display = '';
+          loadAllDemandes();
+        }
+      }
+    }
+    initUser();
+
+    const labels  = { pending:'En attente', approved:'Validée', rejected:'Refusée' };
+    const classes = { pending:'sp-pending', approved:'sp-approved', rejected:'sp-rejected' };
+    const fmtDate = d => new Date(d).toLocaleDateString('fr-FR', { day:'numeric', month:'short', year:'numeric' });
+
+    // ── Mes demandes ──
+    async function loadDemandes() {
+      const data = await api.get('/api/staff/conge-requests');
+      const el   = document.getElementById('demandesList');
+      if (!data || !data.length) {
+        el.innerHTML = '<div class="empty-state">Aucune demande pour le moment</div>';
+        return;
+      }
+      el.innerHTML = data.map(d => `
+        <div class="demande-item">
+          <div class="demande-info">
+            <strong>${fmtDate(d.date_from)} → ${fmtDate(d.date_to)}</strong>
+            <small>Demandé le ${new Date(d.requested_at).toLocaleDateString('fr-FR')}</small>
+            ${d.motif ? `<div class="demande-motif">${d.motif}</div>` : ''}
+          </div>
+          <span class="status-pill ${classes[d.status] || 'sp-pending'}">${labels[d.status] || d.status}</span>
+        </div>
+      `).join('');
+    }
+    loadDemandes();
+
+    // ── Toutes les demandes (admin) ──
+    async function loadAllDemandes() {
+      const data = await api.get('/api/admin/conge-requests');
+      const el   = document.getElementById('allDemandesList');
+      if (!data || !data.length) {
+        el.innerHTML = '<div class="empty-state">Aucune demande</div>';
+        return;
+      }
+      el.innerHTML = data.map(d => `
+        <div class="demande-item" id="adm-${d.id}">
+          <div class="demande-info">
+            <div class="demande-name">${d.user_name}</div>
+            <strong>${fmtDate(d.date_from)} → ${fmtDate(d.date_to)}</strong>
+            <small>Demandé le ${new Date(d.requested_at).toLocaleDateString('fr-FR')}${d.reviewed_by ? ` · Par ${d.reviewed_by}` : ''}</small>
+            ${d.motif ? `<div class="demande-motif">${d.motif}</div>` : ''}
+          </div>
+          ${d.status === 'pending' ? `
+            <div class="demande-actions">
+              <button class="btn-approve" onclick="reviewDemande(${d.id}, 'approved')">✓ Valider</button>
+              <button class="btn-reject"  onclick="reviewDemande(${d.id}, 'rejected')">✕ Refuser</button>
+            </div>
+          ` : `
+            <span class="status-pill ${classes[d.status]}">${labels[d.status]}</span>
+          `}
+        </div>
+      `).join('');
+    }
+
+    async function reviewDemande(id, status) {
+      const res = await api.put(`/api/admin/conge-requests/${id}`, { status });
+      if (res && res.ok) {
+        showToast(status === 'approved' ? '✓ Demande validée' : '✕ Demande refusée', status === 'approved' ? 'success' : 'error');
+        loadAllDemandes();
+        loadDemandes();
+      } else {
+        showToast(res?.error || 'Erreur lors de la mise à jour', 'error');
+      }
+    }
+
+    // ── Signature canvas ──
+    const canvas = document.getElementById('sigCanvas');
+    const ctx    = canvas.getContext('2d');
+    let drawing  = false;
+    let hasSig   = false;
+
+    function resizeCanvas() {
+      const w = canvas.offsetWidth;
+      canvas.width  = w;
+      canvas.height = 120;
+      ctx.strokeStyle = '#1a1a2e';
+      ctx.lineWidth   = 2;
+      ctx.lineCap     = 'round';
+      ctx.lineJoin    = 'round';
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    function getPos(e) {
+      const r    = canvas.getBoundingClientRect();
+      const src  = e.touches ? e.touches[0] : e;
+      return { x: (src.clientX - r.left) * (canvas.width / r.width), y: (src.clientY - r.top) * (canvas.height / r.height) };
+    }
+
+    canvas.addEventListener('mousedown',  e => { drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
+    canvas.addEventListener('mousemove',  e => { if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); hasSig = true; document.getElementById('sigPlaceholder').style.display = 'none'; });
+    canvas.addEventListener('mouseup',    () => { drawing = false; });
+    canvas.addEventListener('mouseleave', () => { drawing = false; });
+    canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }, { passive:false });
+    canvas.addEventListener('touchmove',  e => { e.preventDefault(); if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); hasSig = true; document.getElementById('sigPlaceholder').style.display = 'none'; }, { passive:false });
+    canvas.addEventListener('touchend',   () => { drawing = false; });
+
+    function clearSig() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      hasSig = false;
+      document.getElementById('sigPlaceholder').style.display = '';
+    }
+
+    // ── Soumettre ──
+    async function submitConge() {
+      const dateFrom = document.getElementById('fFrom').value;
+      const dateTo   = document.getElementById('fTo').value;
+      if (!dateFrom || !dateTo)                  { showToast('Veuillez renseigner les dates', 'warning'); return; }
+      if (new Date(dateFrom) > new Date(dateTo)) { showToast('La date de fin doit être après le début', 'warning'); return; }
+      if (!hasSig)                               { showToast('Veuillez signer le formulaire', 'warning'); return; }
+
+      const btn = document.querySelector('.btn-primary');
+      btn.disabled = true; btn.textContent = 'Envoi…';
+
+      try {
+        const res = await api.post('/api/staff/conge-request', {
+          dateFrom,
+          dateTo,
+          motif:     document.getElementById('fMotif').value.trim(),
+          signature: canvas.toDataURL('image/png'),
+        });
+
+        if (res && res.ok) {
+          document.getElementById('congeForm').style.display = 'none';
+          document.getElementById('sentState').style.display = 'block';
+          loadDemandes();
+        } else {
+          showToast(res?.error || 'Erreur lors de l\'envoi', 'error');
+          btn.disabled = false; btn.textContent = '📨 Envoyer la demande';
+        }
+      } catch(e) {
+        showToast('Erreur : ' + e.message, 'error');
+        btn.disabled = false; btn.textContent = '📨 Envoyer la demande';
+      }
+    }
+
+    function resetForm() {
+      document.getElementById('fFrom').value  = '';
+      document.getElementById('fTo').value    = '';
+      document.getElementById('fMotif').value = '';
+      clearSig();
+      document.getElementById('congeForm').style.display = '';
+      document.getElementById('sentState').style.display = 'none';
+      const btn = document.querySelector('.btn-primary');
+      btn.disabled = false; btn.textContent = '📨 Envoyer la demande';
+    }
+  </script>
+</body>
+</html>

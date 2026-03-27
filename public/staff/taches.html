@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Mes Tâches — Mos Pub Mercière</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MOS">
+  <meta name="theme-color" content="#0b2d3e">
+  <style>
+    /* ── Tâche cochée par MOI (doré) ── */
+    .task-item.my-done {
+      border-left-color: var(--gold);
+      background: rgba(212,175,55,0.06);
+    }
+    .task-item.my-done .task-desc {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+    .task-item.my-done .task-checkbox {
+      background: var(--gold);
+      color: #000;
+      border-color: var(--gold);
+      font-weight: 900;
+    }
+
+    /* ── Tâche cochée par un COLLÈGUE (bleu) ── */
+    .task-item.others-done {
+      border-left-color: #5b8dee;
+      background: rgba(91,141,238,0.04);
+    }
+    .task-item.others-done .task-desc {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+    .task-item.others-done .task-checkbox {
+      background: rgba(91,141,238,0.18);
+      color: #5b8dee;
+      border-color: #5b8dee;
+    }
+
+    /* ── Badges des cocheurs ── */
+    .task-completers {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 7px;
+    }
+    .completer-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 9px;
+      border-radius: 20px;
+      letter-spacing: 0.2px;
+    }
+    .completer-badge.me {
+      background: rgba(212,175,55,0.22);
+      color: var(--gold);
+      border: 1px solid var(--gold);
+    }
+    .completer-badge.other {
+      background: rgba(91,141,238,0.15);
+      color: #5b8dee;
+      border: 1px solid rgba(91,141,238,0.45);
+    }
+
+    /* ── Barre stats équipe ── */
+    .team-stats-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 16px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .team-stat-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      white-space: nowrap;
+    }
+    .team-stat-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .team-stat-dot.mine   { background: var(--gold); }
+    .team-stat-dot.team   { background: #5b8dee; }
+    .team-stat-dot.left   { background: var(--border); border: 1px solid #555; }
+    .team-stat-label { color: var(--text-muted); }
+    .team-stat-value { font-weight: 700; color: var(--text); }
+    .team-stat-sep { color: var(--border); margin: 0 4px; }
+
+    /* ── Label de section : compteur rapide ── */
+    .subsection-count {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 400;
+      margin-left: 8px;
+    }
+    .subsection-count .done-count { color: var(--gold); font-weight: 600; }
+
+    /* ── Messages d'équipe ── */
+    .shift-messages {
+      margin-top: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .msg-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .msg-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      gap: 10px;
+    }
+    .msg-card-title {
+      font-size: .88rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .msg-from-badge {
+      font-size: .7rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+    .msg-from-midi { background: rgba(240,180,41,.15); color: var(--warning); border: 1px solid rgba(240,180,41,.3); }
+    .msg-from-soir { background: rgba(155,114,240,.12); color: var(--purple); border: 1px solid rgba(155,114,240,.3); }
+    .msg-edit-btn {
+      font-size: .78rem;
+      color: var(--text-muted);
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .msg-edit-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .msg-body { padding: 14px 16px; }
+    .msg-text {
+      font-size: .9rem;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .msg-empty {
+      font-size: .85rem;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+    .msg-author {
+      font-size: .72rem;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+    .msg-compose {
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      border-top: 1px solid var(--border);
+      background: var(--bg-surface);
+    }
+    .msg-compose textarea {
+      border-radius: var(--radius-sm);
+      resize: none;
+      font-size: .9rem;
+      min-height: 80px;
+    }
+    .msg-compose-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav" id="nav"></nav>
+
+  <div class="page">
+    <div class="container-sm">
+      <div class="page-header">
+        <div>
+          <div class="page-title" id="pageTitle">✅ Mes Tâches</div>
+          <div class="page-subtitle" id="dateLabel"></div>
+        </div>
+      </div>
+
+      <!-- Tab bar + progress globale -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:12px;">
+        <div class="tabs" id="tabBar"></div>
+        <div style="display:flex;align-items:center;gap:10px;min-width:220px;">
+          <div class="progress-bar" style="flex:1;">
+            <div class="progress-fill" id="progressFill" style="width:0%"></div>
+          </div>
+          <span class="text-sm text-muted" id="progressLabel">0/0</span>
+        </div>
+      </div>
+
+      <!-- Stats équipe -->
+      <div class="team-stats-bar" id="teamStatsBar">
+        <div class="team-stat-item">
+          <div class="team-stat-dot mine"></div>
+          <span class="team-stat-label">Moi :</span>
+          <span class="team-stat-value" id="statMe">0</span>
+        </div>
+        <span class="team-stat-sep">·</span>
+        <div class="team-stat-item">
+          <div class="team-stat-dot team"></div>
+          <span class="team-stat-label">Collègues :</span>
+          <span class="team-stat-value" id="statTeam">0</span>
+        </div>
+        <span class="team-stat-sep">·</span>
+        <div class="team-stat-item">
+          <div class="team-stat-dot left"></div>
+          <span class="team-stat-label">Restantes :</span>
+          <span class="team-stat-value" id="statLeft">0</span>
+        </div>
+      </div>
+
+      <!-- Tasks list -->
+      <div id="tasksList"></div>
+
+      <!-- Messages d'équipe -->
+      <div class="shift-messages" id="shiftMessages"></div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/api.js"></script>
+  <script>
+    buildNav('taches');
+    document.getElementById('dateLabel').textContent = formatDate(today());
+
+    const socket = io();
+    let allTasks = [];
+    let currentTab = null;
+    let currentUser = null;
+
+    const TAB_CONFIG = {
+      midi:    [
+        { key: 'matin',     label: '🌅 MATIN' },
+        { key: 'passation', label: '🔄 PASSATION' },
+      ],
+      soir:    [
+        { key: 'soir',      label: '🌙 FERMETURE' },
+      ],
+      all: [
+        { key: 'matin',     label: '🌅 MATIN' },
+        { key: 'passation', label: '🔄 PASSATION' },
+        { key: 'soir',      label: '🌙 FERMETURE' },
+      ],
+    };
+
+    const SECTION_ICONS = {
+      'Bar': '🍹', 'Salle': '🪑', 'Terrasse': '☀️',
+      'Fermeture Bar': '🍹', 'Fermeture Salle': '🪑',
+      'Fermeture Terrasse': '☀️', 'Fermeture Bâtiment': '🔒',
+    };
+
+    async function init() {
+      currentUser = await api.get('/api/auth/me');
+      if (!currentUser) return;
+
+      const tabs = TAB_CONFIG[
+        (currentUser.role === 'admin' || currentUser.role === 'manager') ? 'all' : currentUser.shift
+      ] || TAB_CONFIG.midi;
+      currentTab = tabs[0].key;
+
+      document.getElementById('tabBar').innerHTML = tabs.map(t => `
+        <button class="tab ${t.key === currentTab ? 'active' : ''}"
+                id="tab-${t.key}"
+                onclick="switchTab('${t.key}')">${t.label}</button>
+      `).join('');
+
+      if (currentUser.role === 'admin' || currentUser.role === 'manager') {
+        document.getElementById('pageTitle').textContent = '📋 Toutes les tâches';
+      } else if (currentUser.shift === 'soir') {
+        document.getElementById('pageTitle').textContent = '🌙 Fermeture';
+      }
+
+      await loadTasks();
+      await loadShiftMessages();
+    }
+
+    async function loadTasks() {
+      const data = await api.get('/api/tasks');
+      if (!data) return;
+      allTasks = data;
+      renderTab();
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.tab').forEach(btn => {
+        btn.classList.toggle('active', btn.id === `tab-${tab}`);
+      });
+      renderTab();
+    }
+
+    function renderTab() {
+      const tasks = allTasks.filter(t => t.category === currentTab);
+
+      // ── Stats équipe ──
+      const totalDone   = tasks.filter(t => t.completion_count > 0).length;
+      const myDone      = tasks.filter(t => t.my_completed).length;
+      // Tâches faites UNIQUEMENT par des collègues (pas moi)
+      const onlyTeam    = tasks.filter(t => t.completion_count > 0 && !t.my_completed).length;
+      const remaining   = tasks.filter(t => t.completion_count === 0).length;
+
+      const pct = tasks.length ? Math.round(totalDone / tasks.length * 100) : 0;
+      const fill = document.getElementById('progressFill');
+      fill.style.width = pct + '%';
+      fill.className = 'progress-fill' + (pct === 100 ? ' success' : '');
+      document.getElementById('progressLabel').textContent = `${totalDone}/${tasks.length}`;
+
+      document.getElementById('statMe').textContent   = myDone;
+      document.getElementById('statTeam').textContent = onlyTeam;
+      document.getElementById('statLeft').textContent = remaining;
+
+      // ── Grouper par section → sous-section ──
+      const sections = {};
+      tasks.forEach(t => {
+        if (!sections[t.section]) sections[t.section] = {};
+        if (!sections[t.section][t.subsection]) sections[t.section][t.subsection] = [];
+        sections[t.section][t.subsection].push(t);
+      });
+
+      const container = document.getElementById('tasksList');
+
+      if (!tasks.length) {
+        container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">✅</div><div class="empty-state-text">Aucune tâche pour cette catégorie</div></div>`;
+        return;
+      }
+
+      container.innerHTML = Object.entries(sections).map(([section, subsections]) => `
+        <div class="task-section">
+          <div class="task-section-header">
+            <span class="task-section-icon">${SECTION_ICONS[section] || '📌'}</span>
+            <span class="task-section-title">${section}</span>
+          </div>
+          ${Object.entries(subsections).map(([sub, items]) => {
+            const subDone = items.filter(t => t.completion_count > 0).length;
+            const countLabel = subDone > 0
+              ? `<span class="subsection-count">(<span class="done-count">${subDone}</span>/${items.length} faite${subDone > 1 ? 's' : ''})</span>`
+              : `<span class="subsection-count">(${items.length})</span>`;
+            return `
+              <div class="task-subsection">
+                <div class="task-subsection-header">${sub} ${countLabel}</div>
+                ${items.map(t => renderTask(t)).join('')}
+              </div>`;
+          }).join('')}
+        </div>
+      `).join('');
+    }
+
+    function renderTask(t) {
+      const isMine  = !!t.my_completed;
+      const anyDone = t.completion_count > 0;
+
+      let cssClass = 'task-item';
+      if (isMine)       cssClass += ' my-done';
+      else if (anyDone) cssClass += ' others-done';
+
+      let badgesHtml = '';
+      if (anyDone && t.completers) {
+        const names = t.completers.split(', ');
+        badgesHtml = `<div class="task-completers">
+          ${names.map(name => {
+            const isMe = currentUser && name === currentUser.name;
+            return `<span class="completer-badge ${isMe ? 'me' : 'other'}">✓ ${name}</span>`;
+          }).join('')}
+        </div>`;
+      }
+
+      const checkIcon = isMine ? '✓' : (anyDone ? '✓' : '');
+
+      return `
+        <div class="${cssClass}" id="task-${t.id}" onclick="toggleTask(${t.id})">
+          <div class="task-checkbox">${checkIcon}</div>
+          <div class="task-content">
+            <div class="task-desc">${t.description}</div>
+            ${badgesHtml}
+          </div>
+        </div>
+      `;
+    }
+
+    async function toggleTask(id) {
+      const task = allTasks.find(t => t.id === id);
+      if (!task) return;
+
+      if (task.my_completed) {
+        await api.delete(`/api/tasks/${id}/complete`);
+        task.my_completed = 0;
+        task.my_completion_id = null;
+        task.completion_count = Math.max(0, (task.completion_count || 1) - 1);
+        if (task.completers && currentUser) {
+          const names = task.completers.split(', ').filter(n => n !== currentUser.name);
+          task.completers = names.join(', ') || null;
+        }
+      } else {
+        await api.post(`/api/tasks/${id}/complete`, {});
+        task.my_completed = 1;
+        task.my_completion_id = 1;
+        task.completion_count = (task.completion_count || 0) + 1;
+        if (currentUser) {
+          const names = task.completers ? task.completers.split(', ') : [];
+          if (!names.includes(currentUser.name)) names.push(currentUser.name);
+          task.completers = names.join(', ');
+        }
+      }
+      renderTab();
+    }
+
+    // ── Sync temps réel depuis les autres appareils ──
+    socket.on('task:updated', ({ taskId, userId, userName, completed }) => {
+      if (userId === currentUser?.id) return;
+      const task = allTasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      const names = task.completers ? task.completers.split(', ') : [];
+      if (completed) {
+        if (!names.includes(userName)) names.push(userName);
+        task.completion_count = (task.completion_count || 0) + 1;
+      } else {
+        const idx = names.indexOf(userName);
+        if (idx > -1) names.splice(idx, 1);
+        task.completion_count = Math.max(0, (task.completion_count || 1) - 1);
+      }
+      task.completers = names.join(', ') || null;
+      renderTab();
+    });
+
+    // ── Messages d'équipe ──────────────────────────────────────────────────────
+    let shiftMessages = { midiToSoir: null, soirToMatin: null };
+    let editingMsg = null; // 'midi' or 'soir'
+
+    async function loadShiftMessages() {
+      const data = await api.get(`/api/shift-messages?date=${today()}`);
+      if (!data) return;
+      shiftMessages = data;
+      renderShiftMessages();
+    }
+
+    function canEditMidi() {
+      if (!currentUser) return false;
+      return currentUser.shift === 'midi' || currentUser.role === 'admin' || (currentUser.role === 'manager' && currentUser.shift === 'midi');
+    }
+    function canEditSoir() {
+      if (!currentUser) return false;
+      return currentUser.shift === 'soir' || currentUser.role === 'admin' || (currentUser.role === 'manager' && currentUser.shift === 'soir');
+    }
+
+    function renderShiftMessages() {
+      const el = document.getElementById('shiftMessages');
+
+      const renderCard = (type, msg, canEdit, title, fromBadge, fromBadgeClass, placeholder) => {
+        const isEditing = editingMsg === type;
+        const hasMsg = msg && msg.message;
+        const timeStr = msg?.updated_at ? new Date(msg.updated_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+
+        return `<div class="msg-card">
+          <div class="msg-card-header">
+            <div class="msg-card-title">
+              💬 ${title}
+              <span class="msg-from-badge ${fromBadgeClass}">${fromBadge}</span>
+            </div>
+            ${canEdit ? `<button class="msg-edit-btn" onclick="toggleEditMsg('${type}')">${isEditing ? '✕ Annuler' : (hasMsg ? '✏️ Modifier' : '+ Écrire')}</button>` : ''}
+          </div>
+          <div class="msg-body">
+            ${isEditing ? '' : (hasMsg
+              ? `<div class="msg-text">${escapeHtml(msg.message)}</div>
+                 <div class="msg-author">✍️ ${msg.author_name || '?'} · ${timeStr}</div>`
+              : `<div class="msg-empty">Aucun message pour le moment.</div>`
+            )}
+          </div>
+          ${isEditing ? `
+            <div class="msg-compose">
+              <textarea id="msg-textarea-${type}" placeholder="${placeholder}" rows="3">${hasMsg ? escapeHtml(msg.message) : ''}</textarea>
+              <div class="msg-compose-actions">
+                <button class="btn btn-secondary btn-sm" onclick="toggleEditMsg('${type}')">Annuler</button>
+                <button class="btn btn-primary btn-sm" onclick="sendMsg('${type}')">Envoyer ✓</button>
+              </div>
+            </div>` : ''}
+        </div>`;
+      };
+
+      el.innerHTML =
+        renderCard('midi', shiftMessages.midiToSoir, canEditMidi(),
+          'Pour l\'équipe du soir', 'Midi → Soir', 'msg-from-midi',
+          'Ex : Le bar est en rupture de citron · Résa de 20 personnes à 20h…') +
+        renderCard('soir', shiftMessages.soirToMatin, canEditSoir(),
+          'Pour l\'équipe du matin', 'Soir → Matin', 'msg-from-soir',
+          'Ex : Caisse validée · Problème frigo · Stock à commander…');
+    }
+
+    function toggleEditMsg(type) {
+      editingMsg = editingMsg === type ? null : type;
+      renderShiftMessages();
+      if (editingMsg) {
+        setTimeout(() => {
+          const ta = document.getElementById(`msg-textarea-${type}`);
+          if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+        }, 50);
+      }
+    }
+
+    async function sendMsg(type) {
+      const ta = document.getElementById(`msg-textarea-${type}`);
+      const message = ta?.value.trim();
+      if (!message) return;
+      await api.post('/api/shift-messages', { message });
+      editingMsg = null;
+      await loadShiftMessages();
+      showToast('Message envoyé ✓', 'success');
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    socket.on('shift-message:updated', ({ from_shift, msg }) => {
+      if (from_shift === 'midi') shiftMessages.midiToSoir = msg;
+      else shiftMessages.soirToMatin = msg;
+      if (editingMsg !== from_shift) renderShiftMessages();
+    });
+
+    init();
+  </script>
+</body>
+</html>

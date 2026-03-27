@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Connexion — Mos Pub Mercière</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MOS">
+  <meta name="theme-color" content="#0b2d3e">
+</head>
+<body>
+  <div class="login-page">
+    <div class="login-box">
+      <div class="login-logo">
+        <img src="/images/logo.png" alt="MOS" class="login-logo-img"
+             onerror="this.style.display='none';document.getElementById('login-logo-fallback').style.display='block'">
+        <div id="login-logo-fallback" style="display:none;">
+          <div style="font-size:2.5rem;font-weight:900;color:#cda443;letter-spacing:3px;">MOS</div>
+          <div style="font-size:0.85rem;color:rgba(255,255,255,0.5);letter-spacing:2px;margin-top:4px;">MAKER OF STORIES</div>
+        </div>
+        <p style="margin-top:12px;color:rgba(255,255,255,0.45);font-size:0.82rem;letter-spacing:1px;">Mos Pub Mercière</p>
+      </div>
+
+      <div class="login-card">
+        <div style="text-align:center; margin-bottom:20px;">
+          <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:4px;">Entrez votre code PIN</p>
+        </div>
+
+        <div class="pin-display" id="pinDisplay">
+          <div class="pin-dot" id="d0"></div>
+          <div class="pin-dot" id="d1"></div>
+          <div class="pin-dot" id="d2"></div>
+          <div class="pin-dot" id="d3"></div>
+        </div>
+
+        <div class="pin-pad">
+          <button class="pin-key" onclick="pressKey('1')">1</button>
+          <button class="pin-key" onclick="pressKey('2')">2</button>
+          <button class="pin-key" onclick="pressKey('3')">3</button>
+          <button class="pin-key" onclick="pressKey('4')">4</button>
+          <button class="pin-key" onclick="pressKey('5')">5</button>
+          <button class="pin-key" onclick="pressKey('6')">6</button>
+          <button class="pin-key" onclick="pressKey('7')">7</button>
+          <button class="pin-key" onclick="pressKey('8')">8</button>
+          <button class="pin-key" onclick="pressKey('9')">9</button>
+          <button class="pin-key del" onclick="deleteKey()">⌫</button>
+          <button class="pin-key" onclick="pressKey('0')">0</button>
+          <button class="pin-key enter" onclick="submitPin()">OK</button>
+        </div>
+
+        <div class="pin-error" id="pinError"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let pin = '';
+    const MAX = 4;
+
+    function updateDisplay() {
+      for (let i = 0; i < MAX; i++) {
+        document.getElementById('d' + i).classList.toggle('filled', i < pin.length);
+      }
+    }
+
+    function pressKey(k) {
+      if (pin.length >= MAX) return;
+      pin += k;
+      updateDisplay();
+      if (pin.length === MAX) submitPin();
+    }
+
+    function deleteKey() {
+      pin = pin.slice(0, -1);
+      updateDisplay();
+      document.getElementById('pinError').textContent = '';
+    }
+
+    async function submitPin() {
+      if (!pin) return;
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          document.getElementById('pinError').textContent = data.error;
+          pin = '';
+          updateDisplay();
+          // Shake animation
+          const card = document.querySelector('.login-card');
+          card.style.animation = 'none';
+          card.offsetHeight;
+          card.style.animation = 'shake 0.3s';
+          return;
+        }
+        // Redirect based on role
+        if (data.role === 'admin') {
+          window.location.href = '/admin/dashboard.html';
+        } else if (data.shift === 'resa') {
+          window.location.href = '/resa/dashboard.html';
+        } else if (data.shift === 'midi') {
+          window.location.href = '/staff/taches.html';
+        } else {
+          window.location.href = '/staff/tables.html';
+        }
+      } catch (e) {
+        document.getElementById('pinError').textContent = 'Erreur de connexion';
+        pin = '';
+        updateDisplay();
+      }
+    }
+
+    // Keyboard support
+    document.addEventListener('keydown', e => {
+      if (e.key >= '0' && e.key <= '9') pressKey(e.key);
+      else if (e.key === 'Backspace') deleteKey();
+      else if (e.key === 'Enter') submitPin();
+    });
+
+    // Check if already logged in
+    fetch('/api/auth/me').then(r => r.json()).then(user => {
+      if (user.id) {
+        if (user.role === 'admin') window.location.href = '/admin/dashboard.html';
+        else if (user.shift === 'resa') window.location.href = '/resa/dashboard.html';
+        else if (user.shift === 'midi') window.location.href = '/staff/taches.html';
+        else window.location.href = '/staff/tables.html';
+      }
+    }).catch(() => {});
+  </script>
+
+  <style>
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-8px); }
+      75% { transform: translateX(8px); }
+    }
+  </style>
+</body>
+</html>

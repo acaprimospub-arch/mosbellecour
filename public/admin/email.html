@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Email Planning — Mos Pub Mercière</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="MOS">
+  <meta name="theme-color" content="#0b2d3e">
+  <style>
+    .config-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:24px; margin-bottom:20px; }
+    .config-title { font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+    .fgroup { display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
+    .fgroup label { font-size:.82rem; font-weight:600; color:var(--text-muted); }
+    .fgroup input { width:100%; box-sizing:border-box; }
+    .status-badge { display:inline-flex; align-items:center; gap:6px; font-size:.82rem; font-weight:600; padding:5px 12px; border-radius:99px; }
+    .status-badge.ok  { background:rgba(34,197,94,.15); color:#22c55e; border:1px solid rgba(34,197,94,.3); }
+    .status-badge.nok { background:rgba(239,68,68,.1);  color:#ef4444; border:1px solid rgba(239,68,68,.3); }
+    .help-box { background:rgba(205,164,67,.08); border:1px solid rgba(205,164,67,.3); border-radius:10px; padding:14px 16px; font-size:.83rem; line-height:1.6; }
+    .help-box b { color:var(--primary); }
+    .help-box ol { margin:8px 0 0 16px; padding:0; }
+    .help-box li { margin-bottom:4px; }
+    .help-box code { background:rgba(255,255,255,.1); padding:1px 6px; border-radius:4px; font-size:.8rem; }
+  </style>
+</head>
+<body>
+  <nav class="nav" id="nav"></nav>
+  <div class="page">
+    <div class="container-sm">
+
+      <div class="page-header" style="margin-bottom:24px;">
+        <div>
+          <div class="page-title">📧 Email Planning</div>
+          <div class="page-subtitle">Envoi automatique chaque lundi à pverdier.mospub@gmail.com</div>
+        </div>
+      </div>
+
+      <!-- Statut -->
+      <div class="config-card">
+        <div class="config-title">📊 Statut</div>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <div id="statusBadge"></div>
+          <div style="font-size:.82rem;color:var(--text-muted);">Dernier envoi : <span id="lastSent" style="color:var(--text)">—</span></div>
+        </div>
+      </div>
+
+      <!-- Config SMTP -->
+      <div class="config-card">
+        <div class="config-title">⚙️ Configuration Gmail</div>
+
+        <div class="help-box" style="margin-bottom:20px;">
+          <b>Comment obtenir le mot de passe d'application Gmail ?</b>
+          <ol>
+            <li>Va sur <b>myaccount.google.com</b> → Sécurité</li>
+            <li>Active la <b>validation en 2 étapes</b> si ce n'est pas fait</li>
+            <li>Cherche <b>"Mots de passe des applications"</b></li>
+            <li>Crée un mot de passe pour <code>Mos Pub</code></li>
+            <li>Copie le code de 16 caractères généré → colle-le ci-dessous</li>
+          </ol>
+        </div>
+
+        <form id="configForm" onsubmit="saveConfig(event)">
+          <div class="fgroup">
+            <label>Adresse Gmail (expéditeur)</label>
+            <input type="email" id="emailUser" placeholder="exemple@gmail.com" autocomplete="off">
+          </div>
+          <div class="fgroup">
+            <label>Mot de passe d'application <span style="font-weight:400;color:var(--text-muted)">(16 caractères)</span></label>
+            <input type="password" id="emailPass" placeholder="xxxx xxxx xxxx xxxx" autocomplete="new-password">
+            <span style="font-size:.75rem;color:var(--text-muted);">Laisse vide pour ne pas modifier le mot de passe existant</span>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%">💾 Enregistrer</button>
+        </form>
+      </div>
+
+      <!-- Test -->
+      <div class="config-card">
+        <div class="config-title">🧪 Test d'envoi</div>
+        <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:16px;">
+          Envoie immédiatement le planning de la semaine en cours à <b>pverdier.mospub@gmail.com</b> pour vérifier que tout fonctionne.
+        </p>
+        <button class="btn btn-secondary" style="width:100%" onclick="testSend()" id="btnTest">
+          📤 Envoyer un email de test maintenant
+        </button>
+      </div>
+
+      <!-- Info -->
+      <div class="config-card" style="border-color:rgba(205,164,67,.3);background:rgba(205,164,67,.05);">
+        <div class="config-title">ℹ️ Envoi automatique</div>
+        <p style="font-size:.84rem;color:var(--text-muted);line-height:1.6;margin:0;">
+          Chaque <b style="color:var(--text)">lundi matin entre 8h et 10h</b>, le planning de la semaine en cours est envoyé automatiquement avec :<br>
+          • Le tableau des horaires (par personne et par jour)<br>
+          • Le total des heures planifiées<br>
+          • Les heures supplémentaires signalées<br>
+          • Un onglet détail des signalements (retards + heures supp)
+        </p>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="/js/api.js"></script>
+  <script>
+    buildNav('email');
+
+    async function loadStatus() {
+      const data = await api.get('/api/admin/email-config');
+      if (!data) return;
+      document.getElementById('statusBadge').innerHTML = data.configured
+        ? `<span class="status-badge ok">✅ Gmail configuré</span>`
+        : `<span class="status-badge nok">⚠️ Non configuré</span>`;
+      if (data.user) document.getElementById('emailUser').value = data.user;
+      document.getElementById('lastSent').textContent = data.lastSent
+        ? new Date(data.lastSent + 'T00:00:00').toLocaleDateString('fr-FR', {weekday:'long',day:'numeric',month:'long',year:'numeric'})
+        : 'Jamais';
+    }
+
+    async function saveConfig(e) {
+      e.preventDefault();
+      const user = document.getElementById('emailUser').value.trim();
+      const pass = document.getElementById('emailPass').value.trim();
+      if (!user) { showToast('Adresse Gmail requise', 'warning'); return; }
+      const res = await api.put('/api/admin/email-config', { user, pass: pass || undefined });
+      if (res?.ok) {
+        showToast('Configuration enregistrée ✓', 'success');
+        document.getElementById('emailPass').value = '';
+        await loadStatus();
+      }
+    }
+
+    async function testSend() {
+      const btn = document.getElementById('btnTest');
+      btn.disabled = true;
+      btn.textContent = '⏳ Envoi en cours…';
+      const res = await api.post('/api/admin/email-test', {});
+      btn.disabled = false;
+      btn.textContent = '📤 Envoyer un email de test maintenant';
+      if (res?.ok) {
+        showToast('✅ Email envoyé à pverdier.mospub@gmail.com !', 'success');
+        await loadStatus();
+      } else {
+        showToast(`❌ Erreur : ${res?.error || 'Vérifiez la configuration'}`, 'error');
+      }
+    }
+
+    loadStatus();
+  </script>
+</body>
+</html>

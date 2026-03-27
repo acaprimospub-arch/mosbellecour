@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Réservations — Mos Pub Mercière</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MOS">
+  <meta name="theme-color" content="#0b2d3e">
+  <style>
+
+    /* ══ COULEURS STATUTS ══ */
+    :root { --orange:#F5A624; --orange-bg:rgba(245,166,36,.12); }
+
+    /* ══ DATE BAR ══ */
+    .date-bar { display:flex; align-items:center; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+    .date-bar input[type="date"] { flex:1; min-width:140px; max-width:180px; }
+    .btn-nav { background:var(--bg-card); border:1px solid var(--border); color:var(--text-muted); border-radius:20px; padding:6px 14px; font-size:.82rem; cursor:pointer; white-space:nowrap; transition:border-color .15s,color .15s; }
+    .btn-nav:hover { border-color:var(--primary); color:var(--primary); }
+
+    /* ══ CHIPS ══ */
+    .chips { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+    .chip { display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:20px; border:1px solid var(--border); background:var(--bg-card); font-size:.8rem; white-space:nowrap; }
+    .chip b { font-size:.95rem; }
+    .chip-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+
+    /* ══ CARTES RÉSERVATIONS ══ */
+    .res-list { display:flex; flex-direction:column; gap:8px; }
+    .res-card {
+      background:var(--bg-card); border:1px solid var(--border); border-left:4px solid var(--border);
+      border-radius:10px; padding:13px 14px; cursor:pointer;
+      transition:border-color .15s, background .12s;
+      display:grid; grid-template-columns:56px 1fr auto; gap:0 12px; align-items:start;
+      box-shadow:0 1px 4px rgba(0,0,0,.15);
+    }
+    .res-card:active { background:var(--bg-surface); }
+
+    /* Couleurs selon statut visuel */
+    .res-card.vs-unplaced  { border-left-color: var(--orange);   background: var(--orange-bg); }
+    .res-card.vs-placed    { border-left-color: var(--info);     background: var(--info-bg); }
+    .res-card.vs-arrived   { border-left-color: var(--success);  background: var(--success-bg); }
+    .res-card.vs-late      { border-left-color: var(--danger);   background: var(--danger-bg); animation: blink-card 1.5s ease-in-out infinite; }
+    .res-card.vs-no_show   { border-left-color: var(--danger);   background: rgba(232,84,84,.08); opacity:.7; }
+    .res-card.vs-cancelled { border-left-color: #555;            background: rgba(85,85,85,.07); opacity:.55; }
+    .res-card.vs-cancelled .rc-time,.res-card.vs-cancelled .rc-name { text-decoration:line-through; color:#666; }
+    @keyframes blink-card { 0%,100%{opacity:1} 50%{opacity:.55} }
+
+    .rc-time { font-size:1.2rem; font-weight:800; letter-spacing:-.5px; padding-top:2px; line-height:1; }
+    .rc-body { min-width:0; }
+    .rc-name { font-size:1rem; font-weight:700; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+    .joy-tag { font-size:.65rem; font-weight:700; color:var(--purple); background:var(--purple-bg); border:1px solid rgba(155,114,240,.3); border-radius:20px; padding:1px 7px; }
+    .rc-meta { display:flex; flex-wrap:wrap; gap:5px 10px; margin-top:5px; font-size:.78rem; color:var(--text-muted); align-items:center; }
+    .rc-meta a { color:var(--text-muted); }
+    .rc-space { font-size:.72rem; font-weight:600; color:var(--warning); background:var(--warning-bg); border:1px solid rgba(240,180,41,.3); border-radius:20px; padding:1px 7px; }
+    .rc-table-ok  { font-size:.72rem; font-weight:600; color:var(--success); background:var(--success-bg); border:1px solid rgba(76,175,106,.3); border-radius:20px; padding:1px 7px; }
+    .rc-table-nok { font-size:.72rem; font-weight:600; color:var(--orange); background:var(--orange-bg); border:1px solid rgba(245,166,36,.3); border-radius:20px; padding:1px 7px; }
+    .rc-notes { font-size:.73rem; color:var(--text-muted); font-style:italic; margin-top:3px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+
+    .rc-status { grid-column:3; align-self:center; }
+    .status-pill {
+      font-size:.7rem; font-weight:600; border-radius:20px; padding:4px 9px;
+      border:1.5px solid; background:transparent; cursor:pointer; white-space:nowrap;
+      appearance:none; -webkit-appearance:none; color:inherit; font-family:inherit;
+    }
+    /* Couleurs select selon statut visuel */
+    .vs-unplaced  { border-color:var(--orange);   color:var(--orange); }
+    .vs-placed    { border-color:var(--info);      color:var(--info); }
+    .vs-arrived   { border-color:var(--success);   color:var(--success); }
+    .vs-late      { border-color:var(--danger);    color:var(--danger); }
+    .vs-no_show   { border-color:var(--danger);    color:var(--danger); }
+    .vs-cancelled { border-color:#555;             color:#555; }
+
+    /* ══ BADGE STATUT VISUEL (dans le détail) ══ */
+    .vs-badge {
+      display:inline-flex; align-items:center; padding:5px 14px;
+      border-radius:20px; font-size:.8rem; font-weight:700; border:1.5px solid;
+    }
+    .vsb-unplaced  { color:var(--orange);   border-color:var(--orange);   background:var(--orange-bg); }
+    .vsb-placed    { color:var(--info);     border-color:var(--info);     background:var(--info-bg); }
+    .vsb-arrived   { color:var(--success);  border-color:var(--success);  background:var(--success-bg); }
+    .vsb-late      { color:var(--danger);   border-color:var(--danger);   background:var(--danger-bg); }
+    .vsb-no_show   { color:var(--danger);   border-color:var(--danger);   background:rgba(232,84,84,.08); }
+    .vsb-cancelled { color:#666;            border-color:#555;            background:rgba(85,85,85,.08); }
+
+    /* ══ DRAWER ══ */
+    .drawer-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:200; opacity:0; pointer-events:none; transition:opacity .25s; }
+    .drawer-backdrop.open { opacity:1; pointer-events:auto; }
+    .drawer { position:fixed; bottom:0; left:0; right:0; z-index:201; background:var(--bg-card); border-radius:20px 20px 0 0; box-shadow:0 -8px 40px rgba(0,0,0,.5); transform:translateY(102%); transition:transform .3s cubic-bezier(.32,.72,0,1); max-height:92dvh; display:flex; flex-direction:column; }
+    .drawer.open { transform:translateY(0); }
+    @media (min-width:641px) {
+      .drawer-backdrop { backdrop-filter:blur(2px); }
+      .drawer { bottom:auto; top:50%; left:50%; right:auto; transform:translate(-50%,-40%); opacity:0; pointer-events:none; border-radius:var(--radius); width:100%; max-width:520px; max-height:90vh; transition:transform .25s ease,opacity .25s ease; }
+      .drawer.open { transform:translate(-50%,-50%); opacity:1; pointer-events:auto; }
+    }
+    .drawer-handle { width:40px; height:4px; background:rgba(255,255,255,.15); border-radius:2px; margin:10px auto 0; flex-shrink:0; }
+    @media (min-width:641px) { .drawer-handle { display:none; } }
+    .drawer-head { display:flex; align-items:center; justify-content:space-between; padding:14px 20px 12px; flex-shrink:0; border-bottom:1px solid var(--border); }
+    .drawer-title { font-size:1rem; font-weight:700; }
+    .drawer-close { width:30px; height:30px; border-radius:50%; background:var(--bg-surface); color:var(--text-muted); display:flex; align-items:center; justify-content:center; font-size:.9rem; cursor:pointer; border:none; flex-shrink:0; }
+    .drawer-body { overflow-y:auto; padding:16px 20px; flex:1; -webkit-overflow-scrolling:touch; }
+    .drawer-footer { display:flex; gap:8px; padding:10px 20px calc(14px + env(safe-area-inset-bottom)); border-top:1px solid var(--border); flex-shrink:0; }
+    .drawer-footer .btn { flex:1; justify-content:center; min-height:46px; }
+
+    /* ══ VUE DÉTAIL ══ */
+    .detail-view { display:flex; flex-direction:column; }
+    .detail-row { display:flex; align-items:flex-start; gap:12px; padding:11px 0; border-bottom:1px solid var(--border); }
+    .detail-row:last-child { border-bottom:none; }
+    .detail-icon { font-size:1.1rem; width:28px; text-align:center; flex-shrink:0; padding-top:2px; }
+    .detail-label { font-size:.73rem; color:var(--text-muted); margin-bottom:3px; }
+    .detail-value { font-size:.95rem; font-weight:600; }
+    .detail-value a { color:var(--text); }
+    .detail-table-badge { display:inline-flex; align-items:center; gap:5px; font-size:.82rem; font-weight:600; padding:4px 12px; border-radius:20px; }
+    .dtb-ok  { color:var(--success); background:var(--success-bg); border:1px solid rgba(76,175,106,.3); }
+    .dtb-nok { color:var(--orange);  background:var(--orange-bg);  border:1px solid rgba(245,166,36,.3); }
+
+    /* Status select dans le détail */
+    .detail-status-select {
+      font-size:.82rem; font-weight:600; border-radius:20px; padding:5px 14px;
+      border:1.5px solid var(--border); background:transparent; cursor:pointer;
+      appearance:none; -webkit-appearance:none; color:var(--text); font-family:inherit;
+    }
+
+    /* ══ BOUTON ASSIGNER TABLE ══ */
+    .btn-assign { background:rgba(205,164,67,.1); border:1.5px solid rgba(205,164,67,.4); color:var(--primary); border-radius:var(--radius-sm); padding:13px 16px; font-size:.9rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px; justify-content:center; transition:background .15s; width:100%; margin-top:16px; }
+    .btn-assign:active { background:rgba(205,164,67,.2); }
+
+    /* ══ NOTES INTERNES (ADMIN/MANAGER) ══ */
+    .admin-section { margin-top:16px; padding:14px; background:rgba(205,164,67,.06); border:1px solid rgba(205,164,67,.2); border-radius:var(--radius); }
+    .admin-section-title { font-size:.73rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--primary); margin-bottom:10px; }
+    .admin-notes-ro { font-size:.88rem; color:var(--text); white-space:pre-wrap; line-height:1.55; }
+
+    /* ══ PIÈCES JOINTES ══ */
+    .attach-section { margin-top:16px; padding-top:14px; border-top:1px solid var(--border); }
+    .attach-title { font-size:.73rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin-bottom:10px; }
+    .attach-list { display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
+    .attach-item { display:flex; align-items:center; gap:10px; padding:8px 10px; background:var(--bg-surface); border:1px solid var(--border); border-radius:8px; }
+    .attach-icon { font-size:1.1rem; flex-shrink:0; }
+    .attach-info { flex:1; min-width:0; }
+    .attach-name { font-size:.82rem; font-weight:600; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+    .attach-meta { font-size:.72rem; color:var(--text-muted); }
+    .attach-btn-open { background:rgba(205,164,67,.12); border:1.5px solid rgba(205,164,67,.3); color:var(--primary); border-radius:6px; padding:4px 10px; font-size:.75rem; font-weight:600; cursor:pointer; white-space:nowrap; flex-shrink:0; }
+    .attach-btn-del  { background:rgba(232,84,84,.1); border:1.5px solid rgba(232,84,84,.3); color:var(--danger); border-radius:6px; padding:4px 8px; font-size:.75rem; cursor:pointer; flex-shrink:0; }
+    .attach-upload-btn { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:11px; background:var(--bg-surface); border:1.5px dashed var(--border); border-radius:8px; color:var(--text-muted); font-size:.83rem; font-weight:600; cursor:pointer; transition:border-color .15s,color .15s; }
+    .attach-upload-btn:hover { border-color:var(--primary); color:var(--primary); }
+    .attach-upload-btn input[type="file"] { display:none; }
+
+    /* ══ FORMULAIRE ══ */
+    .frow { display:flex; flex-direction:column; gap:14px; }
+    .fgroup { display:flex; flex-direction:column; gap:6px; }
+    .fgroup label { font-size:.82rem; font-weight:600; color:var(--text-muted); }
+    .f2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .stepper { display:flex; align-items:stretch; border:1.5px solid var(--border); border-radius:var(--radius-sm); overflow:hidden; height:46px; transition:border-color .2s; }
+    .stepper:focus-within { border-color:var(--primary); }
+    .stepper-btn { width:48px; background:var(--bg-surface); color:var(--text); font-size:1.4rem; font-weight:300; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; touch-action:manipulation; }
+    .stepper-btn:active { background:var(--bg-hover); }
+    .stepper-val { flex:1; text-align:center; background:var(--bg-card); border:none; border-left:1.5px solid var(--border); border-right:1.5px solid var(--border); color:var(--text); font-size:1.2rem; font-weight:700; font-family:inherit; padding:0; -moz-appearance:textfield; }
+    .stepper-val::-webkit-inner-spin-button,.stepper-val::-webkit-outer-spin-button { -webkit-appearance:none; }
+
+    /* ══ JOY SYNC BAR ══ */
+    .joy-sync-bar { display:flex; align-items:center; gap:10px; margin-bottom:14px; padding:8px 12px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-sm); font-size:.78rem; color:var(--text-muted); }
+    .joy-sync-bar button { background:var(--bg-surface); border:1px solid var(--border); color:var(--text-muted); border-radius:20px; padding:4px 12px; font-size:.75rem; cursor:pointer; white-space:nowrap; flex-shrink:0; }
+    .joy-sync-bar button:hover { border-color:var(--primary); color:var(--primary); }
+
+  </style>
+</head>
+<body>
+  <nav class="nav" id="nav"></nav>
+
+  <div class="page">
+    <div class="container-sm">
+
+      <div class="page-header">
+        <div>
+          <div class="page-title">📋 Réservations</div>
+          <div class="page-subtitle" id="dateLabel"></div>
+        </div>
+        <button class="btn btn-primary" onclick="openCreate()">+ Nouvelle</button>
+      </div>
+
+      <div class="date-bar">
+        <button class="btn-nav" onclick="shiftDate(-1)">← Hier</button>
+        <input type="date" id="viewDate" onchange="load()">
+        <button class="btn-nav" onclick="goToday()">Aujourd'hui</button>
+        <button class="btn-nav" onclick="shiftDate(1)">Demain →</button>
+      </div>
+
+      <div class="chips" id="chips"></div>
+
+      <div id="joySyncBar" class="joy-sync-bar" style="display:none">
+        <span style="flex:1" id="joySyncLabel">Joy.io</span>
+        <button id="joySyncBtn" onclick="manualSync()">🔄 Sync Joy.io</button>
+      </div>
+
+      <div class="res-list" id="resList"></div>
+
+    </div>
+  </div>
+
+  <!-- ══ BACKDROP ══ -->
+  <div class="drawer-backdrop" id="backdrop" onclick="closeAllDrawers()"></div>
+
+  <!-- ══ DRAWER DÉTAIL ══ -->
+  <div class="drawer" id="detailDrawer">
+    <div class="drawer-handle"></div>
+    <div class="drawer-head">
+      <div class="drawer-title" id="detailTitle">Réservation</div>
+      <button class="drawer-close" onclick="closeAllDrawers()">✕</button>
+    </div>
+    <div class="drawer-body" id="detailBody"></div>
+    <div class="drawer-footer">
+      <button class="btn btn-secondary" onclick="closeAllDrawers()">Fermer</button>
+      <button class="btn btn-danger" id="detailBtnDel" onclick="deleteFromDetail()" style="flex:0 0 auto;padding:0 16px">🗑</button>
+      <button class="btn btn-primary" onclick="switchToEdit()">✏️ Modifier</button>
+    </div>
+  </div>
+
+  <!-- ══ DRAWER ÉDITION ══ -->
+  <div class="drawer" id="editDrawer">
+    <div class="drawer-handle"></div>
+    <div class="drawer-head">
+      <div class="drawer-title" id="editTitle">Modifier</div>
+      <button class="drawer-close" onclick="closeEditDrawer()">✕</button>
+    </div>
+    <div class="drawer-body">
+      <form id="resForm" onsubmit="saveRes(event)">
+        <input type="hidden" id="resId">
+        <div class="frow">
+          <div class="fgroup">
+            <label>Nom du client *</label>
+            <input type="text" id="resName" placeholder="Ex : Dupont" required autocomplete="off">
+          </div>
+          <div class="fgroup">
+            <label>Téléphone</label>
+            <input type="tel" id="resPhone" placeholder="06 xx xx xx xx">
+          </div>
+          <div class="f2">
+            <div class="fgroup"><label>Date *</label><input type="date" id="resDate" required></div>
+            <div class="fgroup"><label>Heure *</label><input type="time" id="resTime" required></div>
+          </div>
+          <div class="fgroup">
+            <label>Nombre de personnes</label>
+            <div class="stepper">
+              <button type="button" class="stepper-btn" onclick="stepParty(-1)">−</button>
+              <input type="number" id="resParty" class="stepper-val" min="1" max="99" value="2" readonly>
+              <button type="button" class="stepper-btn" onclick="stepParty(1)">+</button>
+            </div>
+          </div>
+          <div class="fgroup">
+            <label>Notes client <span style="font-weight:400;color:var(--text-muted)">(allergies, occasion…)</span></label>
+            <textarea id="resNotes" rows="3" placeholder="Ex : Allergie aux noix · Anniversaire…" style="resize:vertical"></textarea>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="drawer-footer">
+      <button class="btn btn-secondary" onclick="closeEditDrawer()">Annuler</button>
+      <button type="submit" form="resForm" class="btn btn-primary">Enregistrer</button>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/api.js"></script>
+  <script>
+    buildNav('reservations');
+    const socket = io();
+
+    let reservations = [];
+    let currentResId = null;
+
+    function _canManage() {
+      const u = window.__mosUser;
+      return u && (u.role === 'admin' || u.role === 'manager');
+    }
+
+    const viewDate = document.getElementById('viewDate');
+    viewDate.value = today();
+    updateLabel();
+
+    // ── Statut visuel calculé ─────────────────────────────────────────────────
+    // • confirmed + pas de table + pas en retard → unplaced  (orange)
+    // • confirmed + table(s)    + pas en retard → placed     (bleu)
+    // • confirmed + aujourd'hui + >15 min passés → late      (rouge)
+    // • arrived                                 → arrived    (vert)
+    // • no_show                                 → no_show    (rouge atténué)
+    // • cancelled                               → cancelled  (gris)
+    function computeVS(r) {
+      if (r.status === 'cancelled') return 'cancelled';
+      if (r.status === 'no_show')   return 'no_show';
+      if (r.status === 'arrived')   return 'arrived';
+      // confirmed : détection retard (seulement pour aujourd'hui)
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (r.date === todayStr && r.time) {
+        const resMs = new Date(r.date + 'T' + r.time + ':00').getTime();
+        if (!isNaN(resMs) && Date.now() - resMs > 15 * 60 * 1000) return 'late';
+      }
+      // table(s) assignée(s) ?
+      const ids = Array.isArray(r.table_ids) ? r.table_ids : [];
+      return ids.length > 0 ? 'placed' : 'unplaced';
+    }
+
+    const VS = {
+      unplaced:  { text: '🟠 À placer',  color: 'var(--orange)'   },
+      placed:    { text: '🔵 Placé',     color: 'var(--info)'     },
+      arrived:   { text: '✅ Arrivé',    color: 'var(--success)'  },
+      late:      { text: '🔴 En retard', color: 'var(--danger)'   },
+      no_show:   { text: '⚠️ No show',   color: 'var(--danger)'   },
+      cancelled: { text: '❌ Annulé',    color: '#666'            },
+    };
+
+    // ── Chargement ────────────────────────────────────────────────────────────
+    async function load() {
+      updateLabel();
+      const data = await api.get(`/api/reservations?date=${viewDate.value}`);
+      if (!data) return;
+      reservations = data.sort((a,b) => (a.time||'').localeCompare(b.time||''));
+      render();
+    }
+
+    function updateLabel() {
+      document.getElementById('dateLabel').textContent = formatDate(viewDate.value);
+    }
+    function shiftDate(d) {
+      const dt = new Date(viewDate.value);
+      dt.setDate(dt.getDate() + d);
+      viewDate.value = dt.toISOString().split('T')[0];
+      load();
+    }
+    function goToday() { viewDate.value = today(); load(); }
+
+    // ── Rendu principal ───────────────────────────────────────────────────────
+    function render() { renderChips(); renderList(); }
+
+    function renderChips() {
+      const counts = { unplaced:0, placed:0, arrived:0, late:0, no_show:0, cancelled:0 };
+      reservations.forEach(r => { const vs = computeVS(r); if (counts[vs]!==undefined) counts[vs]++; });
+      const pax = reservations.filter(r=>r.status!=='cancelled').reduce((s,r)=>s+(r.party_size||0),0);
+      const total = reservations.length;
+
+      let html = `<div class="chip" style="border-color:rgba(205,164,67,.3)"><b style="color:var(--primary)">${total}</b>&nbsp;résa${total>1?'s':''}&nbsp;·&nbsp;${pax}&nbsp;pers.</div>`;
+      if (counts.unplaced)  html += `<div class="chip" style="border-color:rgba(245,166,36,.4)"><div class="chip-dot" style="background:var(--orange)"></div><b style="color:var(--orange)">${counts.unplaced}</b>&nbsp;à placer</div>`;
+      if (counts.placed)    html += `<div class="chip" style="border-color:rgba(33,150,243,.4)"><div class="chip-dot" style="background:var(--info)"></div><b style="color:var(--info)">${counts.placed}</b>&nbsp;placé${counts.placed>1?'s':''}</div>`;
+      if (counts.arrived)   html += `<div class="chip" style="border-color:rgba(76,175,106,.4)"><div class="chip-dot" style="background:var(--success)"></div><b style="color:var(--success)">${counts.arrived}</b>&nbsp;arrivé${counts.arrived>1?'s':''}</div>`;
+      if (counts.late)      html += `<div class="chip" style="border-color:rgba(232,84,84,.5)"><div class="chip-dot" style="background:var(--danger)"></div><b style="color:var(--danger)">${counts.late}</b>&nbsp;en retard</div>`;
+      if (counts.no_show)   html += `<div class="chip" style="opacity:.8"><b style="color:var(--danger)">${counts.no_show}</b>&nbsp;no show</div>`;
+      if (counts.cancelled) html += `<div class="chip" style="opacity:.55"><b>${counts.cancelled}</b>&nbsp;annulée${counts.cancelled>1?'s':''}</div>`;
+      document.getElementById('chips').innerHTML = html;
+    }
+
+    function renderList() {
+      const el = document.getElementById('resList');
+      if (!reservations.length) {
+        el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📅</div><div class="empty-state-text">Aucune réservation ce jour</div></div>`;
+        return;
+      }
+      el.innerHTML = reservations.map(r => {
+        const isJoy = !!r.joy_event_id;
+        const vs = computeVS(r);
+        const tableNames = Array.isArray(r.table_names) && r.table_names.length ? r.table_names
+                         : (r.table_name ? [r.table_name] : []);
+        const tableBadge = tableNames.length
+          ? tableNames.map(n => `<span class="rc-table-ok">🪑 ${n}</span>`).join(' ')
+          : `<span class="rc-table-nok">Sans table</span>`;
+        return `
+          <div class="res-card vs-${vs}" id="rc-${r.id}" onclick="openDetail(${r.id})">
+            <div class="rc-time">${r.time||'—'}</div>
+            <div class="rc-body">
+              <div class="rc-name">${r.customer_name}${isJoy?` <span class="joy-tag">Joy.io</span>`:''}</div>
+              <div class="rc-meta">
+                <span>👥 ${r.party_size} pers.</span>
+                ${r.phone?`<a href="tel:${r.phone}" onclick="event.stopPropagation()">📞 ${r.phone}</a>`:''}
+                ${r.space?`<span class="rc-space">📍 ${r.space}</span>`:''}
+                ${tableBadge}
+              </div>
+              ${r.notes?`<div class="rc-notes">📝 ${r.notes}</div>`:''}
+            </div>
+            <div class="rc-status" onclick="event.stopPropagation()">
+              <select class="status-pill vs-${vs}" onchange="changeStatus(${r.id},this.value)">
+                <option value="confirmed" ${r.status==='confirmed'?'selected':''}>📋 Conf.</option>
+                <option value="arrived"   ${r.status==='arrived'?'selected':''}>✅ Arrivé</option>
+                <option value="no_show"   ${r.status==='no_show'?'selected':''}>⚠️ No show</option>
+                <option value="cancelled" ${r.status==='cancelled'?'selected':''}>❌ Annulé</option>
+              </select>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    // ── Changement de statut rapide (depuis la carte) ─────────────────────────
+    async function changeStatus(id, status) {
+      await api.put(`/api/reservations/${id}`, { status });
+      const r = reservations.find(x=>x.id===id);
+      if (r) r.status = status;
+      render();
+      showToast('Statut mis à jour', 'success');
+    }
+
+    // ── Drawer DÉTAIL ─────────────────────────────────────────────────────────
+    function openDetail(id) {
+      const r = reservations.find(x=>x.id===id);
+      if (!r) return;
+      currentResId = id;
+
+      const isJoy = !!r.joy_event_id;
+      const vs = computeVS(r);
+      const canManage = _canManage();
+
+      document.getElementById('detailTitle').innerHTML =
+        r.customer_name + (isJoy ? ` <span class="joy-tag">Joy.io</span>` : '');
+
+      const tableNames = Array.isArray(r.table_names) && r.table_names.length ? r.table_names
+                       : (r.table_name ? [r.table_name] : []);
+      const tableBadge = tableNames.length
+        ? tableNames.map(n => `<span class="detail-table-badge dtb-ok">🪑 ${n}</span>`).join(' ')
+        : `<span class="detail-table-badge dtb-nok">Pas de table assignée</span>`;
+
+      const vsBadge = `<span class="vs-badge vsb-${vs}">${VS[vs]?.text || vs}</span>`;
+
+      // Section notes internes
+      let adminNotesHtml = '';
+      if (canManage) {
+        adminNotesHtml = `
+          <div class="admin-section">
+            <div class="admin-section-title">📝 Notes internes (équipe)</div>
+            <textarea id="adminNotesTA" rows="3" placeholder="Notes pour l'équipe — non visibles par le client…" style="resize:vertical;width:100%;box-sizing:border-box">${r.admin_notes||''}</textarea>
+            <button class="btn btn-secondary btn-sm" style="margin-top:8px;width:100%" onclick="saveAdminNotes(${r.id})">Enregistrer les notes</button>
+          </div>`;
+      } else if (r.admin_notes) {
+        adminNotesHtml = `
+          <div class="admin-section">
+            <div class="admin-section-title">📝 Notes internes</div>
+            <div class="admin-notes-ro">${r.admin_notes}</div>
+          </div>`;
+      }
+
+      // Section pièces jointes
+      const attachHtml = `
+        <div class="attach-section">
+          <div class="attach-title">📎 Pièces jointes (devis…)</div>
+          <div id="attachList" class="attach-list">
+            <div style="font-size:.78rem;color:var(--text-muted);font-style:italic;">Chargement…</div>
+          </div>
+          ${canManage ? `<label class="attach-upload-btn">
+            <input type="file" id="attachInput" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" onchange="uploadAttachment(this)" style="display:none">
+            📎 Ajouter un fichier (devis, contrat…)
+          </label>` : ''}
+        </div>`;
+
+      document.getElementById('detailBody').innerHTML = `
+        <div class="detail-view">
+          <div class="detail-row">
+            <div class="detail-icon">🕐</div>
+            <div><div class="detail-label">Heure · Date</div>
+            <div class="detail-value">${r.time||'—'} · ${formatDate(r.date)}</div></div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-icon">👥</div>
+            <div><div class="detail-label">Personnes</div>
+            <div class="detail-value">${r.party_size} personne${r.party_size>1?'s':''}</div></div>
+          </div>
+          ${r.phone?`<div class="detail-row">
+            <div class="detail-icon">📞</div>
+            <div><div class="detail-label">Téléphone</div>
+            <div class="detail-value"><a href="tel:${r.phone}">${r.phone}</a></div></div>
+          </div>`:''}
+          ${r.space?`<div class="detail-row">
+            <div class="detail-icon">📍</div>
+            <div><div class="detail-label">Espace réservé</div>
+            <div class="detail-value">${r.space}</div></div>
+          </div>`:''}
+          <div class="detail-row">
+            <div class="detail-icon">🪑</div>
+            <div style="flex:1"><div class="detail-label">Table(s)</div>
+            <div class="detail-value" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:2px">${tableBadge}</div></div>
+          </div>
+          ${r.notes?`<div class="detail-row">
+            <div class="detail-icon">📝</div>
+            <div><div class="detail-label">Notes client</div>
+            <div class="detail-value" style="font-size:.88rem;font-weight:400;white-space:pre-wrap;line-height:1.5">${r.notes}</div></div>
+          </div>`:''}
+          <div class="detail-row">
+            <div class="detail-icon">📌</div>
+            <div style="width:100%">
+              <div class="detail-label">Statut</div>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px">
+                ${vsBadge}
+                <select class="detail-status-select" onchange="changeStatusFromDetail(${r.id},this.value)">
+                  <option value="confirmed" ${r.status==='confirmed'?'selected':''}>📋 Confirmée</option>
+                  <option value="arrived"   ${r.status==='arrived'?'selected':''}>✅ Arrivée</option>
+                  <option value="no_show"   ${r.status==='no_show'?'selected':''}>⚠️ No show</option>
+                  <option value="cancelled" ${r.status==='cancelled'?'selected':''}>❌ Annulée</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn-assign" onclick="goAssignTable(${r.id},'${r.date}','${encodeURIComponent(r.customer_name)}')">
+          🗺️ Assigner une table sur le plan de salle
+        </button>
+
+        ${adminNotesHtml}
+        ${attachHtml}
+      `;
+
+      document.getElementById('detailBtnDel').style.display = isJoy ? 'none' : 'flex';
+      openDrawer('detailDrawer');
+      loadAttachments(id);
+    }
+
+    // ── Notes internes admin/manager ──────────────────────────────────────────
+    async function saveAdminNotes(id) {
+      const ta = document.getElementById('adminNotesTA');
+      if (!ta) return;
+      const notes = ta.value.trim() || null;
+      const res = await api.put(`/api/reservations/${id}`, { admin_notes: notes });
+      if (res?.error) { showToast(res.error, 'error'); return; }
+      const r = reservations.find(x=>x.id===id);
+      if (r) r.admin_notes = notes;
+      showToast('Notes enregistrées ✓', 'success');
+    }
+
+    // ── Pièces jointes ────────────────────────────────────────────────────────
+    function _attachIcon(mime) {
+      if (!mime) return '📄';
+      if (mime.startsWith('image/')) return '🖼️';
+      if (mime === 'application/pdf') return '📕';
+      if (mime.includes('word') || mime.includes('document')) return '📝';
+      if (mime.includes('excel') || mime.includes('spreadsheet')) return '📊';
+      return '📄';
+    }
+    function _fmtSize(b) {
+      if (b < 1024) return b + ' o';
+      if (b < 1048576) return Math.round(b/1024) + ' Ko';
+      return (b/1048576).toFixed(1) + ' Mo';
+    }
+
+    async function loadAttachments(resId) {
+      const list = document.getElementById('attachList');
+      if (!list) return;
+      const atts = await api.get(`/api/reservations/${resId}/attachments`);
+      if (!atts) { list.innerHTML = ''; return; }
+      if (!atts.length) {
+        list.innerHTML = `<div style="font-size:.78rem;color:var(--text-muted);font-style:italic;">Aucune pièce jointe</div>`;
+        return;
+      }
+      const cm = _canManage();
+      list.innerHTML = atts.map(a => `
+        <div class="attach-item">
+          <div class="attach-icon">${_attachIcon(a.mimetype)}</div>
+          <div class="attach-info">
+            <div class="attach-name" title="${a.original_name}">${a.original_name}</div>
+            <div class="attach-meta">${_fmtSize(a.size)}${a.uploader_name?' · '+a.uploader_name:''}</div>
+          </div>
+          <button class="attach-btn-open" onclick="window.open('/api/attachments/${a.id}/file','_blank')">Voir</button>
+          ${cm?`<button class="attach-btn-del" onclick="deleteAttachment(${a.id},${resId})">✕</button>`:''}
+        </div>`).join('');
+    }
+
+    async function uploadAttachment(input) {
+      if (!input.files.length || !currentResId) return;
+      const fd = new FormData();
+      fd.append('file', input.files[0]);
+      input.value = '';
+      const res = await fetch(`/api/reservations/${currentResId}/attachments`, { method:'POST', body:fd });
+      if (!res.ok) {
+        const err = await res.json().catch(()=>({}));
+        showToast(err.error || 'Erreur upload', 'error'); return;
+      }
+      showToast('Fichier ajouté ✓', 'success');
+      loadAttachments(currentResId);
+    }
+
+    async function deleteAttachment(attId, resId) {
+      if (!confirm('Supprimer cette pièce jointe ?')) return;
+      const res = await api.delete(`/api/attachments/${attId}`);
+      if (res?.ok) { showToast('Supprimé', 'info'); loadAttachments(resId); }
+    }
+
+    // ── Changement de statut depuis le détail ─────────────────────────────────
+    async function changeStatusFromDetail(id, status) {
+      await api.put(`/api/reservations/${id}`, { status });
+      const r = reservations.find(x=>x.id===id);
+      if (r) r.status = status;
+      render();
+      showToast('Statut mis à jour', 'success');
+      openDetail(id);
+    }
+
+    function goAssignTable(resId, date, name) {
+      window.location.href = `/staff/tables.html?assignTo=${resId}&date=${date}&name=${name}`;
+    }
+
+    async function deleteFromDetail() {
+      if (!currentResId || !confirm('Supprimer cette réservation ?')) return;
+      await api.delete(`/api/reservations/${currentResId}`);
+      closeAllDrawers();
+      showToast('Réservation supprimée', 'info');
+      load();
+    }
+
+    // ── Drawer ÉDITION ────────────────────────────────────────────────────────
+    function openCreate() {
+      currentResId = null;
+      document.getElementById('editTitle').textContent = 'Nouvelle réservation';
+      document.getElementById('resId').value    = '';
+      document.getElementById('resName').value  = '';
+      document.getElementById('resPhone').value = '';
+      document.getElementById('resDate').value  = viewDate.value;
+      document.getElementById('resTime').value  = '';
+      document.getElementById('resParty').value = 2;
+      document.getElementById('resNotes').value = '';
+      openDrawer('editDrawer');
+      setTimeout(() => document.getElementById('resName').focus(), 350);
+    }
+
+    function switchToEdit() {
+      const r = reservations.find(x=>x.id===currentResId);
+      if (!r) return;
+      document.getElementById('editTitle').textContent = 'Modifier la réservation';
+      document.getElementById('resId').value    = r.id;
+      document.getElementById('resName').value  = r.customer_name;
+      document.getElementById('resPhone').value = r.phone||'';
+      document.getElementById('resDate').value  = r.date;
+      document.getElementById('resTime').value  = r.time;
+      document.getElementById('resParty').value = r.party_size;
+      document.getElementById('resNotes').value = r.notes||'';
+      closeAllDrawers(false);
+      openDrawer('editDrawer');
+    }
+
+    function closeEditDrawer() {
+      closeAllDrawers(false);
+      if (currentResId) openDetail(currentResId);
+    }
+
+    async function saveRes(e) {
+      e.preventDefault();
+      const id = document.getElementById('resId').value;
+      const body = {
+        customer_name: document.getElementById('resName').value.trim(),
+        phone:         document.getElementById('resPhone').value.trim() || null,
+        date:          document.getElementById('resDate').value,
+        time:          document.getElementById('resTime').value,
+        party_size:    parseInt(document.getElementById('resParty').value) || 2,
+        notes:         document.getElementById('resNotes').value.trim() || null,
+      };
+      const res = id ? await api.put(`/api/reservations/${id}`, body) : await api.post('/api/reservations', body);
+      if (res?.error) { showToast(res.error, 'error'); return; }
+      closeAllDrawers();
+      showToast(id ? 'Réservation modifiée ✓' : 'Réservation créée ✓', 'success');
+      if (body.date === viewDate.value) load();
+    }
+
+    function stepParty(d) {
+      const i = document.getElementById('resParty');
+      i.value = Math.max(1, Math.min(99, (parseInt(i.value)||2) + d));
+    }
+
+    // ── Gestion drawers ───────────────────────────────────────────────────────
+    function openDrawer(id) {
+      document.getElementById('backdrop').classList.add('open');
+      document.getElementById(id).classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeAllDrawers(resetBackdrop = true) {
+      ['detailDrawer','editDrawer'].forEach(id => document.getElementById(id).classList.remove('open'));
+      if (resetBackdrop) {
+        document.getElementById('backdrop').classList.remove('open');
+        document.body.style.overflow = '';
+        currentResId = null;
+      }
+    }
+
+    // ── Joy.io Sync ───────────────────────────────────────────────────────────
+    async function initSyncBar() {
+      const user = await api.get('/api/auth/me');
+      if (!user || (user.role !== 'admin' && user.role !== 'manager')) return;
+      document.getElementById('joySyncBar').style.display = 'flex';
+      refreshSyncLabel();
+    }
+    async function refreshSyncLabel() {
+      const cfg = await api.get('/api/joy/config');
+      if (!cfg) return;
+      const d = cfg.lastSync ? new Date(cfg.lastSync) : null;
+      document.getElementById('joySyncLabel').textContent = d
+        ? `Joy.io · dernière sync : ${d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}`
+        : 'Joy.io · jamais synchronisé';
+    }
+    async function manualSync() {
+      const btn = document.getElementById('joySyncBtn');
+      btn.textContent = '⏳ Sync…'; btn.disabled = true;
+      const r = await api.post('/api/joy/sync', {});
+      btn.textContent = '🔄 Sync Joy.io'; btn.disabled = false;
+      if (r?.error) { showToast('Erreur : ' + r.error, 'error'); return; }
+      showToast(`Joy.io — ${r.synced} résa${r.synced>1?'s':''} synchronisée${r.synced>1?'s':''} ✓`, 'success');
+      refreshSyncLabel();
+      load();
+    }
+    initSyncBar();
+
+    // ── Auto-refresh toutes les 60s pour détecter les retards ─────────────────
+    setInterval(() => {
+      if (viewDate.value === new Date().toISOString().split('T')[0]) render();
+    }, 60000);
+
+    // ── Temps réel (Socket.io) ────────────────────────────────────────────────
+    socket.on('reservation:updated', raw => {
+      if (raw.date !== viewDate.value) return;
+      // Normalise table_ids
+      if (typeof raw.table_ids === 'string') {
+        try { raw.table_ids = JSON.parse(raw.table_ids); } catch(e) { raw.table_ids = []; }
+      }
+      const i = reservations.findIndex(x=>x.id===raw.id);
+      if (i >= 0) reservations[i] = raw; else reservations.push(raw);
+      reservations.sort((a,b) => (a.time||'').localeCompare(b.time||''));
+      render();
+    });
+    socket.on('reservation:deleted', ({id}) => {
+      reservations = reservations.filter(r=>r.id!==id);
+      render();
+    });
+    socket.on('joy:synced', () => { load(); refreshSyncLabel(); });
+
+    // ── Retour depuis le plan de salle (table assignée) ───────────────────────
+    const params = new URLSearchParams(location.search);
+    if (params.get('assigned')) {
+      showToast('Table assignée ✓', 'success');
+      history.replaceState({}, '', location.pathname);
+    }
+
+    load();
+  </script>
+</body>
+</html>

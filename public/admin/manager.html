@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Vue Manager — Mos Pub Mercière</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MOS">
+  <meta name="theme-color" content="#0b2d3e">
+  <style>
+    /* ── Date nav ── */
+    .date-nav { display: flex; align-items: center; gap: 8px; }
+    .date-nav button {
+      background: var(--bg-card); border: 1px solid var(--border);
+      color: var(--text); border-radius: 8px; width: 32px; height: 32px;
+      cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center;
+    }
+    .date-nav button:hover { background: var(--bg-hover); }
+    .date-nav input[type="date"] {
+      background: var(--bg-card); border: 1px solid var(--border);
+      color: var(--text); border-radius: 8px; padding: 4px 10px; font-size: 0.85rem;
+    }
+
+    /* ── Staff row ── */
+    .staff-row {
+      display: flex; flex-direction: column; gap: 6px;
+      padding: 12px 0; border-bottom: 1px solid var(--border);
+    }
+    .staff-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .staff-row:first-child { padding-top: 0; }
+    .staff-row-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .staff-row-name { font-weight: 700; font-size: .95rem; flex: 1; min-width: 0; }
+    .staff-row-count { font-size: .85rem; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
+
+    /* ── Resa row ── */
+    .resa-unassigned {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 0; border-bottom: 1px solid var(--border);
+    }
+    .resa-unassigned:last-child { border-bottom: none; padding-bottom: 0; }
+    .resa-unassigned:first-child { padding-top: 0; }
+    .resa-time { font-weight: 800; font-size: 1.1rem; min-width: 52px; }
+    .resa-info { flex: 1; min-width: 0; }
+    .resa-name { font-weight: 700; font-size: .9rem; }
+    .resa-meta { font-size: .78rem; color: var(--text-muted); margin-top: 2px; }
+
+    /* ── KPI grid ── */
+    .kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+    @media (max-width: 480px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
+    .kpi-box {
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 12px 14px; text-align: center;
+    }
+    .kpi-val { font-size: 1.5rem; font-weight: 800; line-height: 1; }
+    .kpi-lbl { font-size: .72rem; color: var(--text-muted); margin-top: 4px; }
+
+    /* ── Task row ── */
+    .task-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 0; border-bottom: 1px solid var(--border);
+      font-size: .88rem;
+    }
+    .task-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .task-row:first-child { padding-top: 0; }
+    .task-desc { flex: 1; min-width: 0; }
+
+    /* ── Accordéon catégorie ── */
+    .cat-toggle {
+      width: 100%; display: flex; align-items: center; justify-content: space-between;
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 10px 14px;
+      cursor: pointer; font-size: .88rem; font-weight: 700;
+      color: var(--text); margin-bottom: 0;
+      transition: background .12s;
+    }
+    .cat-toggle:hover { background: var(--bg-hover); }
+    .cat-toggle-right { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-weight: 400; font-size: .78rem; }
+    .cat-arrow { font-size: .75rem; transition: transform .2s; }
+    .cat-arrow.open { transform: rotate(90deg); }
+    .cat-body { overflow: hidden; transition: max-height .25s ease; max-height: 0; }
+    .cat-body.open { max-height: 2000px; }
+    .cat-body-inner { padding: 4px 0 8px; }
+  </style>
+</head>
+<body>
+  <nav class="nav" id="nav"></nav>
+
+  <div class="page">
+    <div class="container-sm">
+
+      <!-- Header -->
+      <div class="page-header">
+        <div>
+          <div class="page-title">📋 Vue Manager</div>
+        </div>
+        <a href="/admin/dashboard.html" class="btn btn-secondary btn-sm">📊 Dashboard live</a>
+      </div>
+
+      <!-- Onglets -->
+      <div class="tabs" style="margin-bottom:20px;">
+        <button class="tab active" id="tab-taches"   onclick="switchTab('taches')">✅ Tâches</button>
+        <button class="tab"        id="tab-resas"    onclick="switchTab('resas')">📋 Résas</button>
+        <button class="tab"        id="tab-staff"    onclick="switchTab('staff')">👥 Staff</button>
+      </div>
+
+      <!-- ═══ TAB TÂCHES ═══ -->
+      <div id="pane-taches">
+
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header">
+            <div class="card-title">🍽️ Salle — aujourd'hui</div>
+            <button class="btn btn-primary btn-sm" onclick="openTaskModal('salle')">+ Ajouter</button>
+          </div>
+          <div id="taskStatsSalle" style="margin-bottom:16px;"></div>
+          <div id="taskListSalle"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🍳 Cuisine — aujourd'hui</div>
+            <button class="btn btn-primary btn-sm" onclick="openTaskModal('cuisine')">+ Ajouter</button>
+          </div>
+          <div id="taskStatsCuisine" style="margin-bottom:16px;"></div>
+          <div id="taskListCuisine"></div>
+        </div>
+
+      </div>
+
+      <!-- ═══ TAB RÉSAS ═══ -->
+      <div id="pane-resas" style="display:none;">
+
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Résas sans table</div>
+              <div class="card-subtitle" id="resaDateLabel"></div>
+            </div>
+            <div class="date-nav">
+              <button onclick="shiftResaDate(-1)">‹</button>
+              <input type="date" id="resaDateInput" onchange="loadResas()">
+              <button onclick="shiftResaDate(1)">›</button>
+            </div>
+          </div>
+          <div id="unassignedList"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Stats — 7 derniers jours</div>
+          </div>
+          <div id="resaStats"></div>
+        </div>
+
+      </div>
+
+      <!-- ═══ TAB STAFF ═══ -->
+      <div id="pane-staff" style="display:none;">
+
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header">
+            <div class="card-title">Équipe & codes PIN</div>
+          </div>
+          <div id="staffList"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Retards & heures supp — 7 jours</div>
+          </div>
+          <div id="staffEvents"></div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal : créer une tâche -->
+  <div class="modal-overlay hidden" id="taskModal" onclick="closeOnOverlay(event,'taskModal')">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Nouvelle tâche</div>
+        <button class="modal-close" onclick="hideModal('taskModal')">✕</button>
+      </div>
+      <form id="taskForm" onsubmit="createTask(event)">
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div class="form-group">
+            <label class="form-label">Description</label>
+            <input type="text" id="taskDesc" placeholder="Ex: Nettoyer les frigos" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Catégorie</label>
+            <select id="taskCategory">
+              <option value="matin">🌅 Matin</option>
+              <option value="passation">🔄 Passation</option>
+              <option value="soir">🌙 Soir</option>
+              <option value="nettoyage">🧹 Nettoyage</option>
+            </select>
+          </div>
+          <input type="hidden" id="taskDomain" value="salle">
+          <div id="taskDomainLabel" class="badge badge-info" style="width:fit-content;"></div>
+          <div class="form-group">
+            <label class="form-label">Section <span style="color:var(--text-muted);font-weight:400;">(optionnel)</span></label>
+            <input type="text" id="taskSection" placeholder="Ex: Bar, Caisse...">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="hideModal('taskModal')">Annuler</button>
+          <button type="submit" class="btn btn-primary">Créer la tâche</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="/js/api.js"></script>
+  <script>
+    // ─── Accordéon catégories ────────────────────────────────────────────────
+    function toggleCat(id) {
+      const body  = document.getElementById(id);
+      const arrow = document.getElementById('arr-' + id);
+      const open  = body.classList.toggle('open');
+      arrow.classList.toggle('open', open);
+    }
+
+    // ─── Tab switch ───────────────────────────────────────────────────────────
+    function switchTab(tab) {
+      ['taches', 'resas', 'staff'].forEach(t => {
+        document.getElementById(`tab-${t}`).classList.toggle('active', t === tab);
+        document.getElementById(`pane-${t}`).style.display = t === tab ? '' : 'none';
+      });
+    }
+
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+    function todayStr() { return new Date().toISOString().split('T')[0]; }
+
+    function weekRange() {
+      const to   = todayStr();
+      const from = new Date();
+      from.setDate(from.getDate() - 6);
+      return { from: from.toISOString().split('T')[0], to };
+    }
+
+    function fmtDate(str) {
+      return new Date(str + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    }
+
+    const posteLabel = s => {
+      if (s.role === 'admin')                          return { label: '👑 Admin',           cls: 'badge-primary' };
+      if (s.role === 'manager' && s.shift === 'midi')  return { label: '⭐ Manager Midi',    cls: 'badge-warning' };
+      if (s.role === 'manager' && s.shift === 'soir')  return { label: '⭐ Manager Soir',    cls: 'badge-warning' };
+      if (s.shift === 'midi')                          return { label: '🌅 Staff Midi',      cls: 'badge-info'    };
+      if (s.shift === 'soir')                          return { label: '🌙 Staff Soir',      cls: 'badge-muted'   };
+      return { label: s.role || '—', cls: 'badge-muted' };
+    };
+
+    // ─── TAB TÂCHES ──────────────────────────────────────────────────────────
+    const CAT_LABEL = { matin: '🌅 Matin', passation: '🔄 Passation', soir: '🌙 Soir', nettoyage: '🧹 Nettoyage' };
+    const CAT_ORDER = ['matin', 'passation', 'soir', 'nettoyage'];
+
+    function renderDomainTasks(tasks, statsEl, listEl) {
+      // Stats (comptage uniquement, sans completion data par domaine)
+      const grouped = {};
+      tasks.forEach(t => { if (!grouped[t.category]) grouped[t.category] = []; grouped[t.category].push(t); });
+
+      const cats = CAT_ORDER.filter(c => grouped[c]);
+      if (!cats.length) {
+        if (statsEl) statsEl.innerHTML = '';
+        listEl.innerHTML = `<div class="empty-state"><div class="empty-state-text">Aucune tâche.</div></div>`;
+        return;
+      }
+
+      if (statsEl) statsEl.innerHTML = '';
+
+      listEl.innerHTML = cats.map((c, i) => {
+        const count = grouped[c].length;
+        const id    = `cat-${listEl.id}-${c}`;
+        return `
+          <div style="margin-bottom:6px;">
+            <button class="cat-toggle" onclick="toggleCat('${id}')">
+              <span>${CAT_LABEL[c] || c}</span>
+              <span class="cat-toggle-right">
+                <span>${count} tâche${count > 1 ? 's' : ''}</span>
+                <span class="cat-arrow" id="arr-${id}">›</span>
+              </span>
+            </button>
+            <div class="cat-body" id="${id}">
+              <div class="cat-body-inner">
+                ${grouped[c].map(t => `
+                  <div class="task-row">
+                    <div class="task-desc">${t.description}</div>
+                    ${t.section ? `<span class="badge badge-muted">${t.section}</span>` : ''}
+                  </div>`).join('')}
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    async function loadTaches() {
+      const tasks = await api.get('/api/admin/tasks');
+      if (!tasks) return;
+
+      const salle   = tasks.filter(t => t.domain !== 'cuisine');
+      const cuisine = tasks.filter(t => t.domain === 'cuisine');
+
+      renderDomainTasks(salle,   document.getElementById('taskStatsSalle'),   document.getElementById('taskListSalle'));
+      renderDomainTasks(cuisine, document.getElementById('taskStatsCuisine'), document.getElementById('taskListCuisine'));
+    }
+
+    function openTaskModal(domain) {
+      document.getElementById('taskForm').reset();
+      document.getElementById('taskDomain').value = domain;
+      const lbl = document.getElementById('taskDomainLabel');
+      if (domain === 'cuisine') {
+        lbl.textContent = '🍳 Cuisine';
+        lbl.className = 'badge badge-warning';
+      } else {
+        lbl.textContent = '🍽️ Salle';
+        lbl.className = 'badge badge-info';
+      }
+      showModal('taskModal');
+    }
+
+    async function createTask(e) {
+      e.preventDefault();
+      const body = {
+        description: document.getElementById('taskDesc').value.trim(),
+        category:    document.getElementById('taskCategory').value,
+        domain:      document.getElementById('taskDomain').value,
+        section:     document.getElementById('taskSection').value.trim() || null,
+      };
+      const res = await api.post('/api/admin/tasks', body);
+      if (!res) return;
+      hideModal('taskModal');
+      document.getElementById('taskForm').reset();
+      showToast('Tâche créée ✓', 'success');
+      loadTaches();
+    }
+
+    // ─── TAB RÉSAS ───────────────────────────────────────────────────────────
+    function shiftResaDate(n) {
+      const inp = document.getElementById('resaDateInput');
+      const d   = new Date(inp.value + 'T12:00:00');
+      d.setDate(d.getDate() + n);
+      inp.value = d.toISOString().split('T')[0];
+      loadResas();
+    }
+
+    async function loadResas() {
+      const date = document.getElementById('resaDateInput').value;
+      document.getElementById('resaDateLabel').textContent = fmtDate(date);
+
+      const { from, to } = weekRange();
+      const [dash, stats] = await Promise.all([
+        api.get(`/api/admin/dashboard?date=${date}`),
+        api.get(`/api/admin/reservation-stats?from=${from}&to=${to}`)
+      ]);
+
+      // Résas sans table
+      const unassigned = (dash.reservations || []).filter(r => {
+        if (r.status === 'cancelled' || r.status === 'no_show') return false;
+        const ids = (() => { try { return JSON.parse(r.table_ids || '[]'); } catch(e) { return []; } })();
+        return ids.length === 0 && !r.table_id;
+      });
+
+      const listEl = document.getElementById('unassignedList');
+      if (!unassigned.length) {
+        listEl.innerHTML = `<div class="badge badge-success" style="font-size:.85rem;padding:8px 14px;">✅ Toutes les résas ont une table assignée</div>`;
+      } else {
+        listEl.innerHTML = unassigned.map(r => `
+          <div class="resa-unassigned">
+            <div class="resa-time">${r.time}</div>
+            <div class="resa-info">
+              <div class="resa-name">${r.customer_name}</div>
+              <div class="resa-meta">👥 ${r.party_size} pers.${r.space ? ` · 📍 ${r.space}` : ''}${r.phone ? ` · 📞 ${r.phone}` : ''}</div>
+            </div>
+            <span class="badge badge-warning">Sans table</span>
+          </div>`).join('');
+      }
+
+      // Stats semaine
+      const ov  = stats.overview || {};
+      const statsEl = document.getElementById('resaStats');
+      statsEl.innerHTML = `
+        <div class="kpi-row">
+          <div class="kpi-box"><div class="kpi-val">${ov.total || 0}</div><div class="kpi-lbl">Réservations</div></div>
+          <div class="kpi-box"><div class="kpi-val">${ov.total_pax || 0}</div><div class="kpi-lbl">Couverts</div></div>
+          <div class="kpi-box"><div class="kpi-val">${ov.avg_pax || 0}</div><div class="kpi-lbl">Moy. / table</div></div>
+          <div class="kpi-box"><div class="kpi-val" style="color:var(--success);">${ov.nb_arrived || 0}</div><div class="kpi-lbl">Arrivées</div></div>
+          <div class="kpi-box"><div class="kpi-val" style="color:var(--danger);">${ov.nb_no_show || 0}</div><div class="kpi-lbl">No-shows</div></div>
+          <div class="kpi-box"><div class="kpi-val">${ov.total ? Math.round((ov.nb_arrived || 0) / ov.total * 100) : 0}%</div><div class="kpi-lbl">Taux arrivée</div></div>
+        </div>`;
+    }
+
+    // ─── TAB STAFF ───────────────────────────────────────────────────────────
+    async function loadStaff() {
+      const { from, to } = weekRange();
+      const [staff, timeEvents] = await Promise.all([
+        api.get('/api/admin/staff'),
+        api.get(`/api/cuisine/time-events?from=${from}&to=${to}`)
+      ]);
+
+      // Regrouper les events par user_name
+      const evByUser = {};
+      (timeEvents || []).forEach(e => {
+        if (!evByUser[e.user_name]) evByUser[e.user_name] = { retards: 0, retardMin: 0, supps: 0, suppMin: 0 };
+        if (e.type === 'retard') { evByUser[e.user_name].retards++; evByUser[e.user_name].retardMin += e.minutes; }
+        else                     { evByUser[e.user_name].supps++;   evByUser[e.user_name].suppMin   += e.minutes; }
+      });
+
+      // Liste staff + PINs
+      const listEl = document.getElementById('staffList');
+      if (!staff || !staff.length) {
+        listEl.innerHTML = `<div class="empty-state"><div class="empty-state-text">Aucun membre.</div></div>`;
+      } else {
+        listEl.innerHTML = `
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Nom</th><th>PIN</th><th>Poste</th><th>Statut</th></tr></thead>
+              <tbody>
+                ${staff.map(s => {
+                  const p = posteLabel(s);
+                  return `<tr>
+                    <td><strong>${s.name}</strong></td>
+                    <td><span style="font-family:monospace;font-size:1rem;letter-spacing:2px;color:var(--primary);">${s.pin}</span></td>
+                    <td><span class="badge ${p.cls}">${p.label}</span></td>
+                    <td><span class="badge ${s.active ? 'badge-success' : 'badge-danger'}">${s.active ? 'Actif' : 'Inactif'}</span></td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>`;
+      }
+
+      // Retards & supp
+      const evEl = document.getElementById('staffEvents');
+      if (!staff || !staff.length) { evEl.innerHTML = ''; return; }
+
+      const activeStaff = staff.filter(s => s.active && s.role !== 'admin');
+      if (!activeStaff.length) { evEl.innerHTML = `<div class="empty-state"><div class="empty-state-text">Aucun membre actif.</div></div>`; return; }
+
+      evEl.innerHTML = activeStaff.map(s => {
+        const ev = evByUser[s.name] || {};
+        const p  = posteLabel(s);
+        return `
+          <div class="staff-row">
+            <div class="staff-row-header">
+              <span class="staff-row-name">${s.name}</span>
+              <span class="badge ${p.cls}">${p.label}</span>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px;">
+              ${ev.retards
+                ? `<span class="badge badge-danger">⏰ ${ev.retards} retard${ev.retards > 1 ? 's' : ''} — ${ev.retardMin} min</span>`
+                : `<span class="badge badge-muted">⏰ 0 retard</span>`}
+              ${ev.supps
+                ? `<span class="badge badge-info">➕ ${ev.supps} heure${ev.supps > 1 ? 's' : ''} supp — ${ev.suppMin} min</span>`
+                : ''}
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    // ─── Init ─────────────────────────────────────────────────────────────────
+    buildNav('manager');
+    document.getElementById('resaDateInput').value = todayStr();
+    loadTaches();
+    loadResas();
+    loadStaff();
+  </script>
+</body>
+</html>

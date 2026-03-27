@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Créateur de Devis — Mos Pub Mercière</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MOS">
+  <meta name="theme-color" content="#0b2d3e">
+  <style>
+    /* ── Layout desktop ── */
+    @media(min-width: 900px) {
+      .devis-layout {
+        display: grid;
+        grid-template-columns: 1fr 340px;
+        gap: 0;
+        height: calc(100vh - 56px);
+        overflow: hidden;
+      }
+      .devis-main  { overflow-y: auto; padding: 20px 24px; }
+      .devis-recap { overflow-y: auto; padding: 20px; border-left: 1px solid var(--border); background: var(--bg-card); }
+      .container-sm { max-width: none !important; padding: 0 !important; }
+    }
+    @media(max-width: 899px) {
+      .devis-layout { display: flex; flex-direction: column; }
+      .devis-main  { padding: 16px; }
+      .devis-recap { padding: 16px; border-top: 2px solid var(--border); }
+    }
+
+    /* ── Config client ── */
+    .config-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .config-grid .full { grid-column: 1 / -1; }
+    .form-group { margin-bottom: 0; }
+    .form-group label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+    .form-group input, .form-group select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+
+    /* ── Budget bar ── */
+    .budget-bar-wrap {
+      margin-bottom: 16px;
+      padding: 12px 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .budget-bar-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+    .budget-label { color: var(--text-muted); }
+    .budget-value { font-weight: 700; }
+    .budget-value.over  { color: var(--danger); }
+    .budget-value.ok    { color: var(--success); }
+    .budget-track {
+      height: 8px;
+      background: var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .budget-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: var(--success);
+      transition: width .3s ease, background .3s ease;
+    }
+    .budget-fill.over { background: var(--danger); }
+    .budget-fill.warn { background: var(--orange); }
+
+    /* ── Onglets menu ── */
+    .menu-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 4px;
+    }
+    .menu-tab {
+      flex: 1;
+      padding: 7px 4px;
+      border-radius: 7px;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .menu-tab.active { background: var(--primary); color: #000; }
+
+    /* ── Items menu ── */
+    .menu-section { display: none; }
+    .menu-section.active { display: block; }
+
+    .menu-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 8px;
+      transition: border-color .15s, background .15s;
+    }
+    .menu-item.selected {
+      border-color: var(--primary);
+      background: rgba(205,164,67,.07);
+    }
+    .menu-item-info { flex: 1; min-width: 0; }
+    .menu-item-name {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+    .menu-item-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .menu-item-price {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--primary);
+      min-width: 54px;
+      text-align: right;
+    }
+    .qty-stepper {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .qty-btn {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 16px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      line-height: 1;
+    }
+    .qty-btn:active { opacity: .7; }
+    .qty-val {
+      width: 28px;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .suggest-btn {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      border: 1px solid rgba(205,164,67,.4);
+      background: rgba(205,164,67,.08);
+      color: var(--primary);
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* ── Récap ── */
+    .recap-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .recap-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 13px;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(255,255,255,.04);
+    }
+    .recap-item-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-right: 8px;
+    }
+    .recap-item-qty { color: var(--text-muted); font-size: 11px; margin-right: 4px; }
+    .recap-item-price { font-weight: 600; color: var(--primary); flex-shrink: 0; }
+    .recap-empty { color: var(--text-muted); font-size: 12px; text-align: center; padding: 16px 0; }
+
+    .recap-totals {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+    .recap-line {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      padding: 4px 0;
+      color: var(--text-muted);
+    }
+    .recap-line.ttc {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      padding-top: 8px;
+      margin-top: 4px;
+      border-top: 1px solid var(--border);
+    }
+    .recap-line.perpers {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    .tva-note {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 6px;
+      text-align: center;
+    }
+
+    .btn-suggest-all {
+      width: 100%;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px dashed rgba(205,164,67,.5);
+      background: rgba(205,164,67,.06);
+      color: var(--primary);
+      font-size: 12px;
+      cursor: pointer;
+      margin-bottom: 14px;
+    }
+
+    /* ── Actions ── */
+    .devis-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    /* ── Print ── */
+    @media print {
+      nav, .devis-main .menu-tabs, .devis-main .menu-section,
+      .budget-bar-wrap, .config-grid, .devis-actions, .btn-suggest-all { display: none !important; }
+      .devis-layout { display: block !important; }
+      .devis-recap {
+        border: none !important;
+        padding: 0 !important;
+        width: 100% !important;
+      }
+      .recap-title::before { content: "Devis — Mos Pub Mercière\A"; white-space: pre; font-size: 20px; }
+      body { background: white !important; color: black !important; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav" id="nav"></nav>
+
+  <div class="page" style="padding:0">
+    <div class="devis-layout">
+
+      <!-- ── Colonne gauche : config + menu ── -->
+      <div class="devis-main">
+        <div class="container-sm">
+
+          <!-- En-tête -->
+          <div class="card-header" style="margin-bottom:14px">
+            <h1 class="card-title">📝 Créateur de devis</h1>
+            <a class="btn" style="font-size:12px;padding:7px 12px" href="javascript:history.back()">← Retour</a>
+          </div>
+
+          <!-- Config client -->
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-header" style="margin-bottom:12px">
+              <span class="card-title" style="font-size:13px">Informations</span>
+            </div>
+            <div class="config-grid">
+              <div class="form-group full">
+                <label>Client</label>
+                <input type="text" id="cfgClient" placeholder="Nom du client" oninput="updateRecap()">
+              </div>
+              <div class="form-group">
+                <label>Date</label>
+                <input type="date" id="cfgDate" oninput="updateRecap()">
+              </div>
+              <div class="form-group">
+                <label>Nb. de personnes</label>
+                <input type="number" id="cfgPax" value="10" min="1" oninput="updateAll()">
+              </div>
+              <div class="form-group">
+                <label>Budget / personne (€ TTC)</label>
+                <input type="number" id="cfgBudget" value="25" min="0" step="0.5" oninput="updateAll()">
+              </div>
+              <div class="form-group">
+                <label>TVA applicable</label>
+                <select id="cfgTva" onchange="updateAll()">
+                  <option value="10" selected>10 % — Restauration</option>
+                  <option value="5.5">5,5 % — Vente à emporter</option>
+                  <option value="20">20 % — Boissons alcoolisées</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Barre budget -->
+          <div class="budget-bar-wrap" id="budgetBar">
+            <div class="budget-bar-header">
+              <span class="budget-label">Budget total : <strong id="budgetTotal">—</strong></span>
+              <span class="budget-value" id="budgetStatus">0,00 € utilisés</span>
+            </div>
+            <div class="budget-track">
+              <div class="budget-fill" id="budgetFill" style="width:0%"></div>
+            </div>
+          </div>
+
+          <!-- Bouton suggestion auto -->
+          <button class="btn-suggest-all" onclick="suggestAll()">✨ Suggérer les quantités automatiquement</button>
+
+          <!-- Onglets menu -->
+          <div class="menu-tabs">
+            <button class="menu-tab active" onclick="switchMenu('tapas', this)">🫒 Tapas</button>
+            <button class="menu-tab" onclick="switchMenu('burgers', this)">🍔 Burgers & Cie</button>
+          </div>
+
+          <!-- Section Tapas -->
+          <div class="menu-section active" id="sec-tapas"></div>
+
+          <!-- Section Burgers -->
+          <div class="menu-section" id="sec-burgers"></div>
+
+        </div>
+      </div>
+
+      <!-- ── Colonne droite : récapitulatif ── -->
+      <div class="devis-recap">
+        <div class="recap-title">🧾 Récapitulatif</div>
+        <div id="recapItems"><div class="recap-empty">Aucun article sélectionné</div></div>
+
+        <div class="recap-totals" id="recapTotals" style="display:none">
+          <div class="recap-line"><span>Sous-total HT</span><span id="totalHT">—</span></div>
+          <div class="recap-line"><span id="tvaLabel">TVA 10 %</span><span id="totalTVA">—</span></div>
+          <div class="recap-line ttc"><span>Total TTC</span><span id="totalTTC">—</span></div>
+          <div class="recap-line perpers"><span>Par personne</span><span id="totalPerPers">—</span></div>
+          <p class="tva-note">Prix nets, service compris. TVA calculée sur la base des prix TTC.</p>
+        </div>
+
+        <div class="devis-actions">
+          <button class="btn btn-primary" onclick="printDevis()">🖨️ Imprimer / PDF</button>
+          <button class="btn" id="saveDevisBtn" onclick="saveDevis()" style="display:none">💾 Sauvegarder sur la réservation</button>
+          <button class="btn" onclick="resetDevis()" style="color:var(--danger);border-color:var(--danger)">🗑 Réinitialiser</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    buildNav('resa-devis');
+
+    const TVA_RATE = 0.10;
+
+    // ── Menu data (prix TTC, service compris) ──
+    const MENU = {
+      tapas: [
+        { id:'t1', name:'Planche Mixte',          desc:'Mix de charcuteries et de fromages',                              price:22.50, suggestDiv:4 },
+        { id:'t2', name:'Tranche de Pâté Croûte', desc:'Jeunes pousses, pickles d\'oignons',                             price:10.00, suggestDiv:2 },
+        { id:'t3', name:'Terrine de Porc',         desc:'Jeunes pousses, pickles',                                        price: 6.50, suggestDiv:3 },
+        { id:'t4', name:'Pain à l\'Ail',           desc:'Pain ciabatta, beurre à l\'ail maison',                          price: 7.00, suggestDiv:3 },
+        { id:'t5', name:'Aiguillettes de Poulet',  desc:'Sauce creamy bbq',                                              price:10.00, suggestDiv:2 },
+        { id:'t6', name:'Burrata & Pain Grillé',   desc:'Burrata crémeuse, vierge d\'herbes, pain grillé',               price:10.00, suggestDiv:3 },
+        { id:'t7', name:'Potatoes',                desc:'Pommes de terre grenaille maison',                              price: 6.50, suggestDiv:3 },
+        { id:'t8', name:'Potatoes Sauce Gruyère',  desc:'Pommes de terre grenaille, sauce gruyère maison',              price: 8.50, suggestDiv:3 },
+        { id:'t9', name:'Saucisson Sec',           desc:'',                                                              price: 8.00, suggestDiv:4 },
+      ],
+      burgers: [
+        { id:'b1', name:'Beef Burger',         desc:'Steak bœuf frais, bacon, cheddar, oignons frits, pickles, sauce MOS', price:17.00, suggestDiv:1 },
+        { id:'b2', name:'Chicken Burger',      desc:'Aiguillettes de poulet, cheddar, chou, carottes, mayo cajun',         price:15.50, suggestDiv:1 },
+        { id:'b3', name:'Fish Burger',         desc:'Filet de poisson en tempura, concombre, cheddar, sauce tartare',      price:16.00, suggestDiv:1 },
+        { id:'b4', name:'Grilled Triple Cheese',desc:'Pain Banneton, cheddar, emmental, brie, oignons déglassés',         price:14.00, suggestDiv:1 },
+        { id:'b5', name:'Berlinois',           desc:'Veau et poulet grillés façon kebab, salade, chou, sauce blanche',    price:15.50, suggestDiv:1 },
+        { id:'b6', name:'Croque Truffé',       desc:'Saint-Nectaire, jambon blanc, béchamel truffée',                    price:15.00, suggestDiv:1 },
+        { id:'b7', name:'Fish and Chips',      desc:'Cabillaud en tempura, citron, sauce tartare maison',                 price:16.50, suggestDiv:1 },
+      ]
+    };
+
+    // ── Quantités sélectionnées ──
+    const qtys = {};
+    [...MENU.tapas, ...MENU.burgers].forEach(i => qtys[i.id] = 0);
+
+    // ── URL params (réservation liée) ──
+    const params = new URLSearchParams(location.search);
+    const resaId   = params.get('resaId');
+    const resaName = params.get('name');
+    const resaPax  = parseInt(params.get('pax') || '0');
+    const resaDate = params.get('date');
+
+    if (resaName) document.getElementById('cfgClient').value = resaName;
+    if (resaPax)  document.getElementById('cfgPax').value = resaPax;
+    if (resaDate) document.getElementById('cfgDate').value = resaDate;
+    if (resaId)   document.getElementById('saveDevisBtn').style.display = '';
+
+    document.getElementById('cfgDate').value = document.getElementById('cfgDate').value || today();
+
+    // ── Rendu des sections menu ──
+    function renderMenuSection(items, sectionId) {
+      const sec = document.getElementById(sectionId);
+      sec.innerHTML = items.map(item => `
+        <div class="menu-item ${qtys[item.id] > 0 ? 'selected' : ''}" id="mi-${item.id}">
+          <div class="menu-item-info">
+            <div class="menu-item-name">${item.name}</div>
+            ${item.desc ? `<div class="menu-item-desc">${item.desc}</div>` : ''}
+          </div>
+          <span class="menu-item-price">${item.price.toFixed(2).replace('.',',')} €</span>
+          <button class="suggest-btn" onclick="suggestOne('${item.id}')">Auto</button>
+          <div class="qty-stepper">
+            <button class="qty-btn" onclick="adjustQty('${item.id}', -1)">−</button>
+            <span class="qty-val" id="qv-${item.id}">${qtys[item.id]}</span>
+            <button class="qty-btn" onclick="adjustQty('${item.id}', 1)">+</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderAll() {
+      renderMenuSection(MENU.tapas,   'sec-tapas');
+      renderMenuSection(MENU.burgers, 'sec-burgers');
+    }
+
+    function switchMenu(key, btn) {
+      document.querySelectorAll('.menu-tab').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.menu-section').forEach(s => s.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('sec-' + key).classList.add('active');
+    }
+
+    // ── Ajustement quantité ──
+    function adjustQty(id, delta) {
+      qtys[id] = Math.max(0, (qtys[id] || 0) + delta);
+      const valEl = document.getElementById('qv-' + id);
+      const cardEl = document.getElementById('mi-' + id);
+      if (valEl) valEl.textContent = qtys[id];
+      if (cardEl) cardEl.classList.toggle('selected', qtys[id] > 0);
+      updateAll();
+    }
+
+    // ── Suggestion auto pour un item ──
+    function suggestOne(id) {
+      const allItems = [...MENU.tapas, ...MENU.burgers];
+      const item = allItems.find(i => i.id === id);
+      if (!item) return;
+      const pax = parseInt(document.getElementById('cfgPax').value) || 1;
+      qtys[id] = Math.ceil(pax / item.suggestDiv);
+      const valEl = document.getElementById('qv-' + id);
+      const cardEl = document.getElementById('mi-' + id);
+      if (valEl) valEl.textContent = qtys[id];
+      if (cardEl) cardEl.classList.toggle('selected', qtys[id] > 0);
+      updateAll();
+    }
+
+    // ── Suggestion auto globale (dans la limite du budget) ──
+    function suggestAll() {
+      const pax    = parseInt(document.getElementById('cfgPax').value) || 1;
+      const budget = parseFloat(document.getElementById('cfgBudget').value) || 0;
+      const totalBudget = pax * budget;
+
+      // Reset
+      Object.keys(qtys).forEach(k => qtys[k] = 0);
+
+      // Suggère d'abord les tapas (partage), puis stoppe si budget dépassé
+      const allItems = [...MENU.tapas, ...MENU.burgers];
+      let running = 0;
+      allItems.forEach(item => {
+        const suggested = Math.ceil(pax / item.suggestDiv);
+        const cost = suggested * item.price;
+        if (totalBudget === 0 || running + cost <= totalBudget) {
+          qtys[item.id] = suggested;
+          running += cost;
+        }
+      });
+
+      renderAll();
+      updateAll();
+    }
+
+    // ── Mise à jour budget + récap ──
+    function updateAll() {
+      updateBudget();
+      updateRecap();
+    }
+
+    function updateBudget() {
+      const pax    = parseInt(document.getElementById('cfgPax').value) || 0;
+      const budget = parseFloat(document.getElementById('cfgBudget').value) || 0;
+      const total  = pax * budget;
+      const used   = calcTotalTTC();
+      const pct    = total > 0 ? Math.min((used / total) * 100, 100) : 0;
+      const remaining = total - used;
+
+      document.getElementById('budgetTotal').textContent = total > 0 ? fmt(total) + ' €' : '—';
+      const statusEl = document.getElementById('budgetStatus');
+      const fillEl   = document.getElementById('budgetFill');
+
+      statusEl.textContent = fmt(used) + ' € utilisés' + (total > 0 ? (remaining >= 0 ? ` · ${fmt(remaining)} € restants` : ` · ${fmt(-remaining)} € dépassés`) : '');
+      statusEl.className = 'budget-value ' + (total > 0 && used > total ? 'over' : 'ok');
+      fillEl.style.width = pct + '%';
+      fillEl.className = 'budget-fill' + (pct >= 100 ? ' over' : pct >= 85 ? ' warn' : '');
+    }
+
+    function calcTotalTTC() {
+      const allItems = [...MENU.tapas, ...MENU.burgers];
+      return allItems.reduce((s, i) => s + (qtys[i.id] || 0) * i.price, 0);
+    }
+
+    function updateRecap() {
+      const tvaRate = parseFloat(document.getElementById('cfgTva').value) / 100;
+      const pax     = parseInt(document.getElementById('cfgPax').value) || 1;
+      const allItems = [...MENU.tapas, ...MENU.burgers];
+      const selected = allItems.filter(i => (qtys[i.id] || 0) > 0);
+
+      const recapEl = document.getElementById('recapItems');
+      const totalsEl = document.getElementById('recapTotals');
+
+      if (!selected.length) {
+        recapEl.innerHTML = '<div class="recap-empty">Aucun article sélectionné</div>';
+        totalsEl.style.display = 'none';
+        return;
+      }
+
+      recapEl.innerHTML = selected.map(i => {
+        const subtotal = qtys[i.id] * i.price;
+        return `
+          <div class="recap-item">
+            <span class="recap-item-name">${i.name}</span>
+            <span class="recap-item-qty">×${qtys[i.id]}</span>
+            <span class="recap-item-price">${fmt(subtotal)} €</span>
+          </div>
+        `;
+      }).join('');
+
+      const ttc = calcTotalTTC();
+      const ht  = ttc / (1 + tvaRate);
+      const tva = ttc - ht;
+
+      document.getElementById('totalHT').textContent  = fmt(ht)  + ' €';
+      document.getElementById('totalTVA').textContent = fmt(tva) + ' €';
+      document.getElementById('totalTTC').textContent = fmt(ttc) + ' €';
+      document.getElementById('totalPerPers').textContent = fmt(ttc / pax) + ' € / pers.';
+      document.getElementById('tvaLabel').textContent = `TVA ${document.getElementById('cfgTva').value} %`;
+
+      totalsEl.style.display = '';
+    }
+
+    function fmt(n) {
+      return n.toFixed(2).replace('.', ',');
+    }
+
+    // ── Réinitialiser ──
+    function resetDevis() {
+      if (!confirm('Réinitialiser toutes les quantités ?')) return;
+      Object.keys(qtys).forEach(k => qtys[k] = 0);
+      renderAll();
+      updateAll();
+    }
+
+    // ── Imprimer ──
+    function printDevis() {
+      window.print();
+    }
+
+    // ── Sauvegarder comme note sur la réservation ──
+    async function saveDevis() {
+      if (!resaId) return;
+      const pax     = parseInt(document.getElementById('cfgPax').value) || 1;
+      const tvaRate = parseFloat(document.getElementById('cfgTva').value) / 100;
+      const allItems = [...MENU.tapas, ...MENU.burgers];
+      const selected = allItems.filter(i => (qtys[i.id] || 0) > 0);
+
+      if (!selected.length) { showToast('Aucun article sélectionné', 'warning'); return; }
+
+      const ttc = calcTotalTTC();
+      const ht  = ttc / (1 + tvaRate);
+
+      const lines = selected.map(i => `• ${i.name} ×${qtys[i.id]} = ${fmt(qtys[i.id] * i.price)} €`).join('\n');
+      const note = `📝 Devis (${new Date().toLocaleDateString('fr-FR')})\n${lines}\nHT: ${fmt(ht)} € | TVA: ${fmt(ttc - ht)} € | TTC: ${fmt(ttc)} €\n(${fmt(ttc/pax)} € / pers.)`;
+
+      await api.put(`/api/reservations/${resaId}`, { admin_notes: note });
+      showToast('Devis sauvegardé sur la réservation', 'success');
+    }
+
+    // ── Init ──
+    renderAll();
+    updateAll();
+  </script>
+</body>
+</html>
