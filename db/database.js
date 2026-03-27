@@ -176,7 +176,7 @@ db.exec(`
 `);
 
 // ─── Seed Joy iCal URL ─────────────────────────────────────────────────────────
-db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES ('joy_ical_url', 'https://prvt.re/RvuFyy')").run();
+db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES ('joy_ical_url', 'https://prvt.re/jQTqzg')").run();
 
 // ─── Seed équipe ───────────────────────────────────────────────────────────────
 const _seedUsers = [
