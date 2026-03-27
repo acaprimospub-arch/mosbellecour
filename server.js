@@ -575,7 +575,7 @@ async function generatePlanningExcel(weekStart) {
   const dayDates = Array.from({length:7}, (_,i) => _addDays(weekStart, i));
 
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'Mos Pub Mercière';
+  wb.creator = 'Mos Bellecour';
 
   // ── Sheet 1 : Planning ──────────────────────────────────────────────────────
   const ws = wb.addWorksheet('Planning');
@@ -742,14 +742,14 @@ async function sendWeeklyPlanningEmail(weekStart) {
     const sender = db.getSetting('email_smtp_user');
 
     await transporter.sendMail({
-      from: `"Mos Pub Mercière" <${sender}>`,
+      from: `"Mos Bellecour" <${sender}>`,
       to:   PLANNING_RECIPIENT,
       subject: `📅 Planning Cuisine — Semaine du ${weekLabel}`,
       html: `<div style="font-family:Arial,sans-serif;max-width:500px">
         <h2 style="color:#1a3a4a">📅 Planning Cuisine</h2>
         <p>Bonjour,</p>
         <p>Veuillez trouver en pièce jointe le planning cuisine de la semaine du <strong>${weekLabel}</strong>, avec le total des heures et les signalements.</p>
-        <p style="color:#888;font-size:12px">— Mos Pub Mercière</p>
+        <p style="color:#888;font-size:12px">— Mos Bellecour</p>
       </div>`,
       attachments: [{
         filename: `Planning-Cuisine-${weekStart}.xlsx`,
@@ -855,7 +855,7 @@ function generateCongePDF({ userName, requestedAt, dateFrom, dateTo, motif, sign
 
     // ── Pied de page ──
     doc.fillColor('#aaaaaa').fontSize(9).font('Helvetica')
-       .text('Document généré automatiquement — Mos Pub Mercière', 50, 760, { align: 'center' });
+       .text('Document généré automatiquement — Mos Bellecour', 50, 760, { align: 'center' });
 
     doc.end();
   });
@@ -899,7 +899,7 @@ app.post('/api/staff/conge-request', requireAuth, async (req, res) => {
       try {
         const sender = db.getSetting('email_smtp_user');
         const mailOpts = {
-          from: `"Mos Pub Mercière" <${sender}>`,
+          from: `"Mos Bellecour" <${sender}>`,
           to:   PLANNING_RECIPIENT,
           subject: `📋 Demande de congés — ${userName}`,
           html: `<div style="font-family:Arial,sans-serif;max-width:500px;padding:20px">
@@ -908,7 +908,7 @@ app.post('/api/staff/conge-request', requireAuth, async (req, res) => {
             <p>📅 Du <strong>${fmtShort(dateFrom)}</strong> au <strong>${fmtShort(dateTo)}</strong></p>
             ${motif ? `<p>Motif : ${motif}</p>` : ''}
             <p style="color:#888;font-size:12px">Voir le détail et la signature dans le PDF ci-joint.</p>
-            <p style="color:#aaa;font-size:11px;margin-top:20px">— Mos Pub Mercière</p>
+            <p style="color:#aaa;font-size:11px;margin-top:20px">— Mos Bellecour</p>
           </div>`,
         };
         if (pdfBuf) {
@@ -995,7 +995,7 @@ setInterval(() => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log('\n🍺 Maker of Simplicity — Mos Pub Mercière');
+  console.log('\n🍺 Maker of Simplicity — Mos Bellecour');
   console.log(`📡 Serveur démarré sur http://localhost:${PORT}`);
   console.log('🔑 PIN Admin par défaut : 0000\n');
 });
